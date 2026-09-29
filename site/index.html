@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aero Client</title>
+<meta name="description" content="Aero Client: a fast, clean Minecraft PvP client with cosmetics, a modern HUD and its own launcher.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='4' fill='%230b0d14'/%3E%3Cpath fill='%234f8eff' d='M5 13V6l2-3h2l2 3v7H9.5v-2.5h-3V13zm1.5-4h3V7l-1-1.5L6.5 7z'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #07080d;
+    --panel: rgba(255,255,255,.045);
+    --line: rgba(255,255,255,.10);
+    --text: #f2f4fb;
+    --muted: #9aa3b8;
+    --accent: #4f8eff;
+    --accent2: #8b6bff;
+    --ok: #4be38a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.55;
+    overflow-x: hidden;
+  }
+  .glow {
+    position: fixed; inset: 0; z-index: -1; pointer-events: none;
+    background:
+      radial-gradient(60vw 40vw at 15% -10%, rgba(79,142,255,.28), transparent 60%),
+      radial-gradient(50vw 40vw at 90% 10%, rgba(139,107,255,.22), transparent 60%),
+      radial-gradient(70vw 50vw at 50% 120%, rgba(79,142,255,.16), transparent 60%);
+  }
+  .wrap { width: min(1080px, 100% - 32px); margin: 0 auto; }
+  nav { display: flex; align-items: center; justify-content: space-between; padding: 22px 0; }
+  .brand { display: flex; align-items: center; gap: 12px; font-weight: 700; letter-spacing: .04em; text-decoration: none; color: var(--text); }
+  .brand svg { width: 34px; height: 34px; }
+  nav .links { display: flex; gap: 22px; align-items: center; }
+  nav a.l { color: var(--muted); text-decoration: none; font-size: .95rem; }
+  nav a.l:hover { color: var(--text); }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+    padding: 14px 26px; border-radius: 999px; font-weight: 600; font-size: 1rem;
+    text-decoration: none; color: var(--text); border: 1px solid var(--line);
+    background: var(--panel); backdrop-filter: blur(14px);
+    transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease, background .15s ease;
+  }
+  .btn:hover { transform: translateY(-2px); border-color: rgba(255,255,255,.28); }
+  .btn.primary { background: linear-gradient(135deg, var(--accent), var(--accent2)); border-color: transparent; box-shadow: 0 10px 40px -10px rgba(79,142,255,.7); }
+  .btn.primary:hover { box-shadow: 0 14px 50px -8px rgba(79,142,255,.9); }
+  .tag { display: inline-block; vertical-align: middle; margin-left: 8px; padding: 2px 10px; border-radius: 999px; font-size: .7rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; background: rgba(139,107,255,.25); border: 1px solid rgba(139,107,255,.6); color: #d9ccff; }
+  .btn.disabled { background: rgba(255,255,255,.05); border-color: var(--line); color: #6b7386; box-shadow: none; pointer-events: none; cursor: not-allowed; filter: grayscale(1); }
+  .btn.disabled:hover { transform: none; }
+  .btn.discord { background: #5865f2; border-color: transparent; box-shadow: 0 10px 40px -12px rgba(88,101,242,.8); }
+  .btn svg { width: 20px; height: 20px; }
+  .hero { text-align: center; padding: clamp(48px, 9vw, 110px) 0 60px; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 999px;
+    border: 1px solid var(--line); background: var(--panel); color: var(--muted); font-size: .85rem;
+  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 0 rgba(75,227,138,.6); animation: pulse 2s infinite; }
+  @keyframes pulse { 70% { box-shadow: 0 0 0 9px rgba(75,227,138,0); } 100% { box-shadow: 0 0 0 0 rgba(75,227,138,0); } }
+  h1 { font-size: clamp(2.6rem, 8vw, 5.4rem); line-height: 1.02; margin: 22px 0 18px; letter-spacing: -.03em; }
+  h1 span { background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .lead { color: var(--muted); font-size: clamp(1.05rem, 2.2vw, 1.3rem); max-width: 640px; margin: 0 auto 34px; }
+  .cta { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; }
+  .stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; max-width: 520px; margin: 56px auto 0; }
+  .stat { padding: 22px; border-radius: 22px; border: 1px solid var(--line); background: var(--panel); backdrop-filter: blur(14px); }
+  .online { max-width: 720px; margin: 26px auto 0; text-align: left; padding: 22px; border-radius: 22px; border: 1px solid var(--line); background: var(--panel); backdrop-filter: blur(14px); }
+  .online h3 { font-size: .8rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 10px; }
+  .chip { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px 6px 6px; border-radius: 999px; border: 1px solid var(--line); background: rgba(255,255,255,.05); font-size: .9rem; }
+  .chip img { width: 24px; height: 24px; border-radius: 6px; image-rendering: pixelated; }
+  .stat.wide { grid-column: 1 / -1; }
+  .stat b { display: block; font-size: clamp(2rem, 6vw, 3rem); letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+  .stat small { color: var(--muted); }
+  section { padding: 56px 0; }
+  h2 { font-size: clamp(1.7rem, 4vw, 2.4rem); letter-spacing: -.02em; margin-bottom: 8px; }
+  .sub { color: var(--muted); margin-bottom: 30px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+  .card { padding: 26px; border-radius: 22px; border: 1px solid var(--line); background: var(--panel); backdrop-filter: blur(14px); transition: transform .2s ease, border-color .2s ease; }
+  .card:hover { transform: translateY(-4px); border-color: rgba(79,142,255,.5); }
+  .card .ic { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; margin-bottom: 14px; background: linear-gradient(135deg, rgba(79,142,255,.3), rgba(139,107,255,.3)); }
+  .card .ic svg { width: 22px; height: 22px; stroke: #cfe0ff; }
+  .card h3 { font-size: 1.1rem; margin-bottom: 6px; }
+  .card p { color: var(--muted); font-size: .95rem; }
+  .dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+  .dl .card { display: flex; flex-direction: column; gap: 14px; }
+  details { border: 1px solid var(--line); background: var(--panel); border-radius: 16px; padding: 16px 20px; margin-bottom: 10px; }
+  summary { cursor: pointer; font-weight: 600; }
+  details p { color: var(--muted); margin-top: 10px; font-size: .95rem; }
+  footer { border-top: 1px solid var(--line); margin-top: 40px; padding: 28px 0 40px; color: var(--muted); font-size: .9rem; display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; }
+  footer a { color: var(--muted); }
+  .reveal { opacity: 0; transform: translateY(18px); transition: opacity .6s ease, transform .6s ease; }
+  .reveal.in { opacity: 1; transform: none; }
+  @media (prefers-reduced-motion: reduce) { .reveal { opacity: 1; transform: none; transition: none; } .dot { animation: none; } html { scroll-behavior: auto; } }
+  .notice { display: none; margin: 8px 0 0; padding: 16px 20px; border-radius: 18px; border: 1px solid rgba(79,142,255,.5); background: rgba(79,142,255,.12); backdrop-filter: blur(14px); }
+  .notice.show { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
+  .notice .btn { padding: 10px 18px; font-size: .9rem; }
+  @media (max-width: 640px) { nav .links a.l:not([href="/store"]) { display: none; } }
+
+  .shots { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
+  .shot { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; overflow: hidden; }
+  .shot.wide { grid-column: 1 / -1; }
+  .shot video, .shot img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; background: #05060a; }
+  .shot .cap { padding: 14px 18px 18px; }
+  .shot .cap b { display: block; font-size: 1.02rem; }
+  .shot .cap span { color: var(--muted); font-size: .92rem; }
+  @media (max-width: 720px) { .shots { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="glow"></div>
+<div class="wrap">
+  <nav>
+    <a class="brand" href="#top">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><rect width="16" height="16" rx="4" fill="#0b0d14"/><path fill="#4f8eff" d="M5 13V6l2-3h2l2 3v7H9.5v-2.5h-3V13zm1.5-4h3V7l-1-1.5L6.5 7z"/></svg>
+      AERO CLIENT
+    </a>
+    <div class="links">
+      <a class="l" href="#download">Download</a>
+      <a class="l" href="#features">Features</a>
+      <a class="l" href="#preview">Preview</a>
+      <a class="l" href="/store">Store</a>
+      <a class="l" href="#faq">FAQ</a>
+      <a class="btn discord" href="https://discord.gg/txtempire" rel="noopener" style="padding:10px 18px;font-size:.9rem">Discord</a>
+    </div>
+  </nav>
+
+  <div class="notice" id="notice">
+    <span id="noticeText">This download is not released yet.</span>
+    <a class="btn discord" href="https://discord.gg/txtempire" rel="noopener">Get notified on Discord</a>
+  </div>
+
+  <header class="hero" id="top">
+    <span class="pill"><i class="dot"></i><span id="pillText">Live</span></span>
+    <h1>Play faster.<br><span>Look better.</span></h1>
+    <p class="lead">A light Minecraft PvP client with a glass-clean interface, high FPS, cosmetics, and its own launcher. Free.</p>
+    <div class="cta">
+      <a class="btn primary" id="launcherHero" href="/download/launcher">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16"/></svg>
+        <span>Download Launcher</span>
+      </a>
+      <a class="btn" href="/download/mod">Download Mod (.jar)</a>
+      <a class="btn discord" href="https://discord.gg/txtempire" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.100L4 20l1-4.600A8 8 0 1 1 21 12z"/></svg>
+        Join our Discord
+      </a>
+    </div>
+    <div class="stats">
+      <div class="stat"><b id="online">–</b><small>playing right now</small></div>
+      <div class="stat"><b id="total">–</b><small>players in total</small></div>
+      <div class="stat wide"><b id="downloads">–</b><small>total downloads</small></div>
+    </div>
+    <div class="online" id="onlineBox" hidden>
+      <h3>Online now</h3>
+      <div class="chips" id="onlineList"></div>
+    </div>
+  </header>
+
+  <section id="features">
+    <h2 class="reveal">Built for PvP</h2>
+    <p class="sub reveal">Everything you need, nothing that slows you down.</p>
+    <div class="grid">
+      <div class="card reveal"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg></div><h3>High performance</h3><p>Performance modules, unlocked FPS and a UI that costs almost nothing to draw.</p></div>
+      <div class="card reveal"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="3"/><path d="M8 21h8"/></svg></div><h3>Clean glass UI</h3><p>A modern menu and HUD in your own accent color. Rebindable keys, color pickers, profiles.</p></div>
+      <div class="card reveal"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.6 5.600 6.100.7-4.500 4.200 1.200 6L12 16.500 6.600 19.500l1.200-6L3.300 9.300l6.100-.7z"/></svg></div><h3>Cosmetics</h3><p>Capes, wings, pets, badges, trails and shields. Other Aero players see them too.</p></div>
+      <div class="card reveal"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div><h3>PvP tools</h3><p>Totem counter, TierTagger ranks, ping colors, item highlighter, potion HUD and more.</p></div>
+    </div>
+  </section>
+
+  <section id="preview">
+    <h2 class="reveal">Preview</h2>
+    <p class="sub reveal">A look at Aero Client in a real game: performance, menus, cosmetics and social tools.</p>
+    <div class="shots">
+      <figure class="shot wide reveal">
+        <video src="/media/vanilla.mp4" poster="/media/vanilla-poster.jpg" autoplay muted loop playsinline preload="metadata"></video>
+        <figcaption class="cap"><b>Stays out of your way</b><span>Clean HUD, ping and potion timers, hundreds of FPS. Nothing on screen you did not ask for.</span></figcaption>
+      </figure>
+      <figure class="shot reveal">
+        <video src="/media/client.mp4" poster="/media/client-poster.jpg" autoplay muted loop playsinline preload="metadata"></video>
+        <figcaption class="cap"><b>Every module in one menu</b><span>Search, toggle and tune more than a hundred modules with live settings, color pickers and rebindable keys.</span></figcaption>
+      </figure>
+      <figure class="shot reveal">
+        <video src="/media/wardrobe.mp4" poster="/media/wardrobe-poster.jpg" autoplay muted loop playsinline preload="metadata"></video>
+        <figcaption class="cap"><b>Wardrobe</b><span>Try capes, wings, pets, headwear and trails on a live preview, then see them in the world.</span></figcaption>
+      </figure>
+      <figure class="shot wide reveal">
+        <video src="/media/social.mp4" poster="/media/social-poster.jpg" autoplay muted loop playsinline preload="metadata"></video>
+        <figcaption class="cap"><b>Friends and HUD layout</b><span>See who is online, then drag every HUD element exactly where you want it and save it as a profile.</span></figcaption>
+      </figure>
+      <figure class="shot reveal">
+        <img src="/media/pause-menu.webp" alt="Aero Client game menu" loading="lazy">
+        <figcaption class="cap"><b>Game menu</b><span>A rounded, readable pause menu with the Aero style, in your accent color.</span></figcaption>
+      </figure>
+      <figure class="shot reveal">
+        <img src="/media/cosmetics.webp" alt="Player with Aero cape, ping and totem count" loading="lazy">
+        <figcaption class="cap"><b>Cosmetics and nametags</b><span>Your cape on your back, ping and totem pops right on the nametag.</span></figcaption>
+      </figure>
+      <figure class="shot wide reveal">
+        <img src="/media/friends.webp" alt="Aero Client friends list" loading="lazy">
+        <figcaption class="cap"><b>Friends list</b><span>Add friends by name, check who is online and see their skin at a glance.</span></figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section id="download">
+    <h2 class="reveal">Get started</h2>
+    <p class="sub reveal">Use the launcher for one-click play and automatic mod updates, or drop the mod into your own Fabric setup.</p>
+    <div class="dl">
+      <div class="card reveal">
+        <h3>Aero Launcher</h3>
+        <p>Windows. Signs you in with Microsoft, installs Fabric and keeps the mod up to date.</p>
+        <a class="btn primary" id="launcherCard" href="/download/launcher"><span>Download for Windows</span></a>
+      </div>
+      <div class="card reveal">
+        <h3>Aero Client mod</h3>
+        <p>Minecraft 1.21.11 with Fabric Loader and Fabric API. Put the .jar into your mods folder.</p>
+        <a class="btn" href="/download/mod">Download .jar</a>
+      </div>
+      <div class="card reveal">
+        <h3>Preview builds <span class="tag">Beta</span></h3>
+        <p>Try new features before everyone else. Preview builds can contain bugs.</p>
+        <a class="btn" href="/download/preview">Download Preview (.jar)</a>
+      </div>
+      <div class="card reveal">
+        <h3>Community</h3>
+        <p>Suggestions, bug reports, giveaways and people to play with.</p>
+        <a class="btn discord" href="https://discord.gg/txtempire" rel="noopener">Join the Discord</a>
+      </div>
+    </div>
+  </section>
+
+  <section id="faq">
+    <h2 class="reveal">FAQ</h2>
+    <div class="reveal" style="margin-top:22px">
+      <details><summary>What do you store about me?</summary><p>Your Minecraft UUID and name, your equipped cosmetics and when you last played, so other Aero players can see your cosmetics. This site shows the totals and the names of players who are online right now. Turn off "Share profile online" in the client to not appear, or delete your entry there.</p></details>
+      <details><summary>Is it safe?</summary><p>The client never sees your password. Your identity is confirmed through Mojang's own session server. The launcher and mod are open source.</p></details>
+      <details><summary>Which version does it support?</summary><p>Minecraft 1.21.11 on Fabric.</p></details>
+      <details><summary>How do updates work?</summary><p>The launcher downloads the newest mod automatically each time you start it.</p></details>
+    </div>
+  </section>
+
+  <footer>
+    <span>© Aero Client. Not affiliated with Mojang or Microsoft.</span>
+    <span><a href="https://discord.gg/txtempire" rel="noopener">Discord</a></span>
+  </footer>
+</div>
+
+<script>
+  // Flip to false once the launcher is ready to be downloaded.
+  const LAUNCHER_COMING_SOON = true;
+  if (LAUNCHER_COMING_SOON) {
+    for (const id of ["launcherHero", "launcherCard"]) {
+      const el = document.getElementById(id);
+      el.classList.remove("primary");
+      el.classList.add("disabled");
+      el.removeAttribute("href");
+      el.setAttribute("aria-disabled", "true");
+      el.querySelector("span").textContent = "Launcher: Coming Soon";
+    }
+  }
+  const fmt = new Intl.NumberFormat();
+  function countTo(el, to) {
+    const from = Number(el.dataset.v || 0);
+    el.dataset.v = to;
+    const t0 = performance.now();
+    const step = (t) => {
+      const p = Math.min(1, (t - t0) / 700);
+      el.textContent = fmt.format(Math.round(from + (to - from) * (1 - Math.pow(1 - p, 3))));
+      if (p < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
+  async function stats() {
+    try {
+      const s = await (await fetch("/api/stats", { cache: "no-store" })).json();
+      countTo(document.getElementById("online"), s.online);
+      countTo(document.getElementById("total"), s.total);
+      countTo(document.getElementById("downloads"), s.downloads || 0);
+      document.getElementById("pillText").textContent = s.online + " playing now";
+    } catch (e) {
+      document.getElementById("pillText").textContent = "Aero Client";
+    }
+  }
+  async function online() {
+    try {
+      const o = await (await fetch("/api/online", { cache: "no-store" })).json();
+      const box = document.getElementById("onlineBox");
+      const list = document.getElementById("onlineList");
+      list.textContent = "";
+      for (const name of o.players) {
+        const chip = document.createElement("span");
+        chip.className = "chip";
+        const img = document.createElement("img");
+        img.alt = "";
+        img.loading = "lazy";
+        img.src = "https://mc-heads.net/avatar/" + encodeURIComponent(name) + "/48";
+        chip.appendChild(img);
+        chip.appendChild(document.createTextNode(name));
+        list.appendChild(chip);
+      }
+      box.hidden = o.players.length === 0;
+    } catch (e) {}
+  }
+  stats();
+  online();
+  setInterval(online, 10000);
+  setInterval(stats, 10000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) { stats(); online(); } });
+  const nodl = new URLSearchParams(location.search).get("nodl");
+  if (nodl) {
+    document.getElementById("noticeText").textContent =
+      (nodl === "mod" ? "The mod (.jar)" : nodl === "preview" ? "The preview build" : "The launcher") + " is not released yet. We are close, join the Discord to get it first.";
+    document.getElementById("notice").classList.add("show");
+    window.scrollTo(0, 0);
+    history.replaceState(null, "", location.pathname);
+  }
+  const io = new IntersectionObserver((es) => es.forEach((e) => e.isIntersecting && e.target.classList.add("in")), { threshold: .12 });
+  document.querySelectorAll(".reveal").forEach((el) => io.observe(el));
+</script>
+</body>
+</html>

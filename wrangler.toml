@@ -1,0 +1,24 @@
+name = "aero"
+main = "src/worker.js"
+compatibility_date = "2025-01-01"
+
+# The website (site/) and the API (src/worker.js) are deployed together: one `wrangler deploy`.
+[assets]
+directory = "./site"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+run_worker_first = ["/api/*", "/download/*"]
+
+[vars]
+DISCORD_URL = "https://discord.gg/txtempire"
+MOD_REPO = "KingF3rdi/aero-client-launcher"
+LAUNCHER_REPO = "KingF3rdi/aero-client-launcher"
+MOD_ASSET = "aero-client.jar"
+LAUNCHER_ASSET = "Aero-Client.exe"
+# Comma-separated Minecraft UUIDs that get the Owner rank (rank cape + badges). Other ranks: UPDATE wallets SET rank = 'staff' ...
+OWNER_UUIDS = "25d36f59d8d1476d91db200ccc56cab7"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "aero"
+database_id = "692da1e2-9203-477c-8778-e0b8f623a805"

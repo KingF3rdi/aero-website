@@ -1,0 +1,14 @@
+{
+  "name": "aero-server",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "wrangler dev -c wrangler.toml",
+    "deploy": "wrangler deploy -c wrangler.toml",
+    "db:init": "wrangler d1 execute aero -c wrangler.toml --remote --file=schema.sql",
+    "db:init:local": "wrangler d1 execute aero -c wrangler.toml --local --file=schema.sql"
+  },
+  "devDependencies": {
+    "wrangler": "^4"
+  }
+}

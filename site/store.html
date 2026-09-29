@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aero Store</title>
+<meta name="description" content="Aero Client store: capes and badges you earn with Shards by playing. Weekly featured cape and daily deals.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='4' fill='%230b0d14'/%3E%3Cpath fill='%234f8eff' d='M5 13V6l2-3h2l2 3v7H9.5v-2.5h-3V13zm1.5-4h3V7l-1-1.5L6.5 7z'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #07080d;
+    --panel: rgba(255,255,255,.045);
+    --line: rgba(255,255,255,.10);
+    --text: #f2f4fb;
+    --muted: #9aa3b8;
+    --accent: #4f8eff;
+    --accent2: #8b6bff;
+    --ok: #4be38a;
+    --common: #b8c0d0;
+    --uncommon: #4be38a;
+    --rare: #4f8eff;
+    --legendary: #ffb33d;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg); color: var(--text); line-height: 1.55; overflow-x: hidden;
+  }
+  .glow {
+    position: fixed; inset: 0; z-index: -1; pointer-events: none;
+    background:
+      radial-gradient(60vw 40vw at 15% -10%, rgba(79,142,255,.28), transparent 60%),
+      radial-gradient(50vw 40vw at 90% 10%, rgba(139,107,255,.22), transparent 60%),
+      radial-gradient(70vw 50vw at 50% 120%, rgba(255,179,61,.10), transparent 60%);
+  }
+  .wrap { width: min(1080px, 100% - 32px); margin: 0 auto; }
+  nav { display: flex; align-items: center; justify-content: space-between; padding: 22px 0; }
+  .brand { display: flex; align-items: center; gap: 12px; font-weight: 700; letter-spacing: .04em; text-decoration: none; color: var(--text); }
+  .brand svg { width: 34px; height: 34px; }
+  nav .links { display: flex; gap: 22px; align-items: center; }
+  nav a.l { color: var(--muted); text-decoration: none; font-size: .95rem; }
+  nav a.l:hover, nav a.l.on { color: var(--text); }
+  nav a.l.on { font-weight: 600; }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+    padding: 10px 18px; border-radius: 999px; font-weight: 600; font-size: .9rem;
+    text-decoration: none; color: var(--text); border: 1px solid var(--line); background: var(--panel);
+  }
+  .btn.discord { background: #5865f2; border-color: transparent; }
+  @media (max-width: 640px) { nav .links a.l:not(.on) { display: none; } }
+
+  header { padding: 40px 0 10px; }
+  h1 { font-size: clamp(2.2rem, 6vw, 3.6rem); line-height: 1.05; letter-spacing: -.03em; margin-bottom: 12px; }
+  h1 span { background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .lead { color: var(--muted); max-width: 640px; font-size: 1.08rem; }
+  .earn { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-top: 26px; }
+  .earn div { padding: 16px 18px; border-radius: 18px; border: 1px solid var(--line); background: var(--panel); }
+  .earn b { display: block; font-size: 1.05rem; }
+  .earn small { color: var(--muted); }
+
+  section { padding: 34px 0 10px; }
+  .head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+  h2 { font-size: 1.5rem; letter-spacing: -.02em; }
+  .timer { color: var(--muted); font-size: .9rem; font-variant-numeric: tabular-nums; }
+
+  .featured { display: grid; grid-template-columns: auto 1fr; gap: 34px; align-items: center; padding: 30px; border-radius: 26px;
+    border: 1px solid rgba(255,179,61,.35); background: linear-gradient(135deg, rgba(255,179,61,.10), rgba(139,107,255,.10)); }
+  .featured .info h3 { font-size: 2rem; letter-spacing: -.02em; }
+  @media (max-width: 600px) { .featured { grid-template-columns: 1fr; justify-items: center; text-align: center; } }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 14px; }
+  .item { position: relative; display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 20px 14px 16px;
+    border-radius: 20px; border: 1px solid var(--line); background: var(--panel); transition: transform .2s ease, border-color .2s ease; }
+  .item:hover { transform: translateY(-4px); border-color: rgba(255,255,255,.25); }
+  .item h3 { font-size: 1.02rem; }
+  .off { position: absolute; top: 10px; right: 10px; padding: 2px 9px; border-radius: 999px; font-size: .72rem; font-weight: 700;
+    background: rgba(75,227,138,.16); border: 1px solid rgba(75,227,138,.5); color: var(--ok); }
+
+  .cape { width: 70px; height: 112px; background-repeat: no-repeat; background-size: 448px 224px; background-position: -7px -7px;
+    image-rendering: pixelated; border-radius: 4px; box-shadow: 0 10px 30px -8px rgba(0,0,0,.7); }
+  .featured .cape { width: 120px; height: 192px; background-size: 768px 384px; background-position: -12px -12px; }
+  .badge { width: 70px; height: 70px; margin: 21px 0; border-radius: 50%; display: grid; place-items: center; font-size: 2rem; font-weight: 800;
+    background: linear-gradient(135deg, var(--accent), var(--accent2)); box-shadow: 0 10px 30px -8px rgba(79,142,255,.7); }
+
+  .rar { font-size: .78rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+  .rar.common { color: var(--common); } .rar.uncommon { color: var(--uncommon); } .rar.rare { color: var(--rare); } .rar.legendary { color: var(--legendary); }
+  .price { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .price s { color: var(--muted); font-weight: 500; font-size: .85em; }
+  .gem { width: 14px; height: 14px; }
+
+  .filters { display: flex; flex-wrap: wrap; gap: 8px; }
+  .filters button { font: inherit; font-size: .85rem; padding: 6px 14px; border-radius: 999px; cursor: pointer;
+    color: var(--muted); border: 1px solid var(--line); background: var(--panel); }
+  .filters button.on { color: var(--text); border-color: rgba(79,142,255,.7); background: rgba(79,142,255,.18); }
+
+  .howto { margin-top: 40px; padding: 22px 24px; border-radius: 20px; border: 1px solid rgba(79,142,255,.4); background: rgba(79,142,255,.08); color: var(--muted); }
+  .howto b { color: var(--text); }
+  .err { color: var(--muted); padding: 30px 0; }
+  footer { border-top: 1px solid var(--line); margin-top: 50px; padding: 28px 0 40px; color: var(--muted); font-size: .9rem; display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; }
+  footer a { color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="glow"></div>
+<div class="wrap">
+  <nav>
+    <a class="brand" href="/">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><rect width="16" height="16" rx="4" fill="#0b0d14"/><path fill="#4f8eff" d="M5 13V6l2-3h2l2 3v7H9.5v-2.5h-3V13zm1.5-4h3V7l-1-1.5L6.5 7z"/></svg>
+      AERO CLIENT
+    </a>
+    <div class="links">
+      <a class="l" href="/#download">Download</a>
+      <a class="l" href="/#features">Features</a>
+      <a class="l on" href="/store">Store</a>
+      <a class="l" href="/#faq">FAQ</a>
+      <a class="btn discord" href="https://discord.gg/txtempire" rel="noopener">Discord</a>
+    </div>
+  </nav>
+
+  <header>
+    <h1>Aero <span>Store</span></h1>
+    <p class="lead">Capes and badges you earn by playing, no real money involved. Collect Shards in game and spend them here in the client under <b>You &rarr; Store</b>.</p>
+    <div class="earn">
+      <div><b id="payout">+10 Shards</b><small id="payoutSub">every 10 minutes in a world</small></div>
+      <div><b>Daily streak</b><small>10 to 50 Shards for logging in every day</small></div>
+      <div><b>Playtime milestones</b><small>up to 750 Shards at 100 hours</small></div>
+    </div>
+  </header>
+
+  <div id="store"><p class="err">Loading the store...</p></div>
+
+  <div class="howto">
+    <b>How to buy:</b> open Aero Client in Minecraft, press Right Shift, go to <b>You &rarr; Store</b> and pick an item.
+    Purchases are tied to your Minecraft account, so they are checked in game and not on this page.
+  </div>
+
+  <footer>
+    <span>&copy; Aero Client. Not affiliated with Mojang or Microsoft.</span>
+    <span><a href="/">Home</a> &middot; <a href="https://discord.gg/txtempire" rel="noopener">Discord</a></span>
+  </footer>
+</div>
+
+<script>
+  const ANIMATED = new Set(["galaxy", "samurai", "blossom"]);
+  const GEM = '<svg class="gem" viewBox="0 0 16 16" aria-hidden="true"><path fill="#8fd0ff" d="M4 2h8l3 4-7 8-7-8z"/><path fill="#4f8eff" d="M8 14 1 6h14z" opacity=".55"/></svg>';
+  const fmt = new Intl.NumberFormat();
+  let filter = "all";
+  let data = null;
+
+  function el(tag, cls, html) {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (html !== undefined) e.innerHTML = html;
+    return e;
+  }
+
+  function art(item) {
+    const [kind, id] = item.id.split(":");
+    if (kind !== "cape") return el("div", "badge", item.name[0]);
+    const d = el("div", "cape");
+    d.dataset.cape = id;
+    d.style.backgroundImage = "url(/media/capes/" + id + (ANIMATED.has(id) ? "_0" : "") + ".png)";
+    d.setAttribute("role", "img");
+    d.setAttribute("aria-label", item.name + " cape");
+    return d;
+  }
+
+  function price(item) {
+    const was = item.base && item.price < item.base ? "<s>" + fmt.format(item.base) + "</s>" : "";
+    return el("span", "price", GEM + fmt.format(item.price) + " " + was);
+  }
+
+  function card(item, off) {
+    const c = el("div", "item");
+    if (off) c.appendChild(el("span", "off", "-" + off + "%"));
+    c.appendChild(art(item));
+    c.appendChild(el("h3", "", item.name));
+    c.appendChild(el("span", "rar " + item.rarity, item.rarity));
+    c.appendChild(price(item));
+    return c;
+  }
+
+  function left(ms) {
+    const s = Math.max(0, Math.floor(ms / 1000));
+    const d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60), sec = s % 60;
+    return (d ? d + "d " : "") + h + "h " + String(m).padStart(2, "0") + "m " + String(sec).padStart(2, "0") + "s";
+  }
+
+  function render() {
+    const root = document.getElementById("store");
+    root.textContent = "";
+    const f = data.featured;
+
+    const s1 = el("section");
+    const h1 = el("div", "head");
+    h1.appendChild(el("h2", "", "Featured this week"));
+    h1.appendChild(el("span", "timer", "")).id = "weekTimer";
+    s1.appendChild(h1);
+    const fc = el("div", "featured");
+    fc.appendChild(art(f));
+    const info = el("div", "info");
+    info.appendChild(el("span", "rar " + f.rarity, f.rarity));
+    info.appendChild(el("h3", "", f.name));
+    info.appendChild(el("p", "", "<span style='color:var(--ok);font-weight:700'>" + f.off + "% off</span> until the week ends"));
+    const p = price(f);
+    p.style.fontSize = "1.4rem";
+    p.style.marginTop = "10px";
+    info.appendChild(p);
+    fc.appendChild(info);
+    s1.appendChild(fc);
+    root.appendChild(s1);
+
+    const s2 = el("section");
+    const h2 = el("div", "head");
+    h2.appendChild(el("h2", "", "Daily deals"));
+    h2.appendChild(el("span", "timer", "")).id = "dayTimer";
+    s2.appendChild(h2);
+    const g2 = el("div", "grid");
+    for (const it of data.daily) g2.appendChild(card(it, it.off));
+    s2.appendChild(g2);
+    root.appendChild(s2);
+
+    const s3 = el("section");
+    const h3 = el("div", "head");
+    h3.appendChild(el("h2", "", "All items"));
+    const fl = el("div", "filters");
+    for (const r of ["all", "common", "uncommon", "rare", "legendary"]) {
+      const b = el("button", r === filter ? "on" : "", r[0].toUpperCase() + r.slice(1));
+      b.onclick = () => { filter = r; render(); };
+      fl.appendChild(b);
+    }
+    h3.appendChild(fl);
+    s3.appendChild(h3);
+    const g3 = el("div", "grid");
+    const order = { common: 0, uncommon: 1, rare: 2, legendary: 3 };
+    const list = data.catalog.filter((c) => filter === "all" || c.rarity === filter)
+      .sort((a, b) => order[a.rarity] - order[b.rarity] || a.name.localeCompare(b.name));
+    for (const it of list) g3.appendChild(card(it, it.price < it.base ? Math.round(100 - it.price / it.base * 100) : 0));
+    s3.appendChild(g3);
+    root.appendChild(s3);
+    tick();
+  }
+
+  function tick() {
+    if (!data) return;
+    const now = Date.now();
+    const w = document.getElementById("weekTimer");
+    const d = document.getElementById("dayTimer");
+    if (w) w.textContent = "Ends in " + left(data.weekEndsAt - now);
+    if (d) d.textContent = "New deals in " + left(data.dayEndsAt - now);
+    if (now > data.dayEndsAt + 2000) load();
+  }
+
+  let frame = 0;
+  function animate() {
+    frame = (frame + 1) % 8;
+    document.querySelectorAll("[data-cape]").forEach((c) => {
+      if (ANIMATED.has(c.dataset.cape)) c.style.backgroundImage = "url(/media/capes/" + c.dataset.cape + "_" + frame + ".png)";
+    });
+  }
+
+  async function load() {
+    try {
+      const r = await fetch("/api/store", { cache: "no-store" });
+      if (!r.ok) throw new Error(r.status);
+      data = await r.json();
+      if (data.payout) {
+        document.getElementById("payout").textContent = "+" + data.payout.shards + " Shards";
+        document.getElementById("payoutSub").textContent = "every " + Math.round(data.payout.every / 60000) + " minutes in a world";
+      }
+      render();
+    } catch (e) {
+      data = null;
+      document.getElementById("store").innerHTML = "<p class='err'>The store could not be loaded right now. Try again in a minute.</p>";
+    }
+  }
+
+  // Preload the animation frames so they don't flicker.
+  for (const id of ANIMATED) for (let i = 0; i < 8; i++) new Image().src = "/media/capes/" + id + "_" + i + ".png";
+  load();
+  setInterval(tick, 1000);
+  if (!matchMedia("(prefers-reduced-motion: reduce)").matches) setInterval(animate, 150);
+</script>
+</body>
+</html>
