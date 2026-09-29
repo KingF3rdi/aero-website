@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Aero Store</title>
-<meta name="description" content="Aero Client store: capes and badges you earn with Shards by playing. Weekly featured cape and daily deals.">
+<meta name="description" content="Aero Client store: capes, badges, bundles and Shards. Pay with Shards you earn in game or with PayPal.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='4' fill='%230b0d14'/%3E%3Cpath fill='%234f8eff' d='M5 13V6l2-3h2l2 3v7H9.5v-2.5h-3V13zm1.5-4h3V7l-1-1.5L6.5 7z'/%3E%3C/svg%3E">
 <style>
   :root {
@@ -16,6 +16,8 @@
     --accent: #4f8eff;
     --accent2: #8b6bff;
     --ok: #4be38a;
+    --warn: #ffb33d;
+    --bad: #ff6b6b;
     --common: #b8c0d0;
     --uncommon: #4be38a;
     --rare: #4f8eff;
@@ -42,50 +44,71 @@
   nav a.l:hover, nav a.l.on { color: var(--text); }
   nav a.l.on { font-weight: 600; }
   .btn {
-    display: inline-flex; align-items: center; justify-content: center; gap: 10px;
-    padding: 10px 18px; border-radius: 999px; font-weight: 600; font-size: .9rem;
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 10px 18px; border-radius: 999px; font: inherit; font-weight: 600; font-size: .9rem; cursor: pointer;
     text-decoration: none; color: var(--text); border: 1px solid var(--line); background: var(--panel);
   }
+  .btn:hover { border-color: rgba(255,255,255,.28); }
+  .btn.primary { background: #2f6fe0; border-color: transparent; }
+  .btn.primary:hover { background: #255fc6; }
   .btn.discord { background: #5865f2; border-color: transparent; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
   @media (max-width: 640px) { nav .links a.l:not(.on) { display: none; } }
 
   header { padding: 40px 0 10px; }
   h1 { font-size: clamp(2.2rem, 6vw, 3.6rem); line-height: 1.05; letter-spacing: -.03em; margin-bottom: 12px; }
   h1 span { background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
-  .lead { color: var(--muted); max-width: 640px; font-size: 1.08rem; }
+  .lead { color: var(--muted); max-width: 680px; font-size: 1.08rem; }
   .earn { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-top: 26px; }
   .earn div { padding: 16px 18px; border-radius: 18px; border: 1px solid var(--line); background: var(--panel); }
   .earn b { display: block; font-size: 1.05rem; }
   .earn small { color: var(--muted); }
+
+  .account { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-top: 22px;
+    padding: 14px 18px; border-radius: 18px; border: 1px solid rgba(79,142,255,.4); background: rgba(79,142,255,.08); }
+  .account img { width: 32px; height: 32px; border-radius: 8px; image-rendering: pixelated; vertical-align: middle; margin-right: 10px; }
+  .account .who { font-weight: 600; }
+  .account .muted { color: var(--muted); font-size: .92rem; }
 
   section { padding: 34px 0 10px; }
   .head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
   h2 { font-size: 1.5rem; letter-spacing: -.02em; }
   .timer { color: var(--muted); font-size: .9rem; font-variant-numeric: tabular-nums; }
 
-  .featured { display: grid; grid-template-columns: auto 1fr; gap: 34px; align-items: center; padding: 30px; border-radius: 26px;
-    border: 1px solid rgba(255,179,61,.35); background: linear-gradient(135deg, rgba(255,179,61,.10), rgba(139,107,255,.10)); }
+  .featured { display: grid; grid-template-columns: auto 1fr; gap: 34px; align-items: center; padding: 30px; border-radius: 26px; cursor: pointer;
+    border: 1px solid rgba(255,179,61,.35); background: linear-gradient(135deg, rgba(255,179,61,.10), rgba(139,107,255,.10)); color: inherit; font: inherit; text-align: left; width: 100%; }
   .featured .info h3 { font-size: 2rem; letter-spacing: -.02em; }
   @media (max-width: 600px) { .featured { grid-template-columns: 1fr; justify-items: center; text-align: center; } }
 
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 14px; }
-  .item { position: relative; display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 20px 14px 16px;
-    border-radius: 20px; border: 1px solid var(--line); background: var(--panel); transition: transform .2s ease, border-color .2s ease; }
+  .grid.wide { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+  .item { position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 20px 14px 16px; width: 100%;
+    border-radius: 20px; border: 1px solid var(--line); background: var(--panel); color: inherit; font: inherit; cursor: pointer;
+    transition: transform .2s ease, border-color .2s ease; }
   .item:hover { transform: translateY(-4px); border-color: rgba(255,255,255,.25); }
+  .item:focus-visible, .featured:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .item h3 { font-size: 1.02rem; }
+  .item .sub { color: var(--muted); font-size: .85rem; text-align: center; }
   .off { position: absolute; top: 10px; right: 10px; padding: 2px 9px; border-radius: 999px; font-size: .72rem; font-weight: 700;
     background: rgba(75,227,138,.16); border: 1px solid rgba(75,227,138,.5); color: var(--ok); }
+  .owned { position: absolute; top: 10px; left: 10px; padding: 2px 9px; border-radius: 999px; font-size: .72rem; font-weight: 700;
+    background: rgba(255,255,255,.1); color: var(--text); }
 
   .cape { width: 70px; height: 112px; background-repeat: no-repeat; background-size: 448px 224px; background-position: -7px -7px;
-    image-rendering: pixelated; border-radius: 4px; box-shadow: 0 10px 30px -8px rgba(0,0,0,.7); }
-  .featured .cape { width: 120px; height: 192px; background-size: 768px 384px; background-position: -12px -12px; }
+    image-rendering: pixelated; border-radius: 4px; box-shadow: 0 10px 30px -8px rgba(0,0,0,.7); flex-shrink: 0; }
+  .featured .cape, dialog .cape { width: 120px; height: 192px; background-size: 768px 384px; background-position: -12px -12px; }
+  .capes { display: flex; gap: 6px; }
+  .capes .cape { width: 50px; height: 80px; background-size: 320px 160px; background-position: -5px -5px; }
   .badge { width: 70px; height: 70px; margin: 21px 0; border-radius: 50%; display: grid; place-items: center; font-size: 2rem; font-weight: 800;
-    background: linear-gradient(135deg, var(--accent), var(--accent2)); box-shadow: 0 10px 30px -8px rgba(79,142,255,.7); }
+    background: linear-gradient(135deg, var(--accent), var(--accent2)); }
+  .gembig { width: 80px; height: 80px; margin: 16px 0; }
 
   .rar { font-size: .78rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
   .rar.common { color: var(--common); } .rar.uncommon { color: var(--uncommon); } .rar.rare { color: var(--rare); } .rar.legendary { color: var(--legendary); }
-  .price { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .prices { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .price { display: inline-flex; align-items: center; gap: 5px; }
   .price s { color: var(--muted); font-weight: 500; font-size: .85em; }
+  .eur { color: #d4ddf0; }
   .gem { width: 14px; height: 14px; }
 
   .filters { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -93,9 +116,39 @@
     color: var(--muted); border: 1px solid var(--line); background: var(--panel); }
   .filters button.on { color: var(--text); border-color: rgba(79,142,255,.7); background: rgba(79,142,255,.18); }
 
-  .howto { margin-top: 40px; padding: 22px 24px; border-radius: 20px; border: 1px solid rgba(79,142,255,.4); background: rgba(79,142,255,.08); color: var(--muted); }
+  .orders { display: flex; flex-direction: column; gap: 8px; }
+  .order { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; padding: 12px 16px; border-radius: 14px; border: 1px solid var(--line); background: var(--panel); }
+  .order code { font-weight: 700; }
+  .st { font-size: .8rem; font-weight: 700; padding: 2px 10px; border-radius: 999px; }
+  .st.pending { background: rgba(255,179,61,.16); color: var(--warn); }
+  .st.paid { background: rgba(75,227,138,.16); color: var(--ok); }
+  .st.cancelled { background: rgba(255,107,107,.16); color: var(--bad); }
+
+  dialog { margin: auto; width: min(460px, 100% - 32px); max-height: calc(100% - 32px); overflow: auto; padding: 26px; border-radius: 24px;
+    border: 1px solid var(--line); background: #10131d; color: var(--text); }
+  dialog::backdrop { background: rgba(3,4,8,.7); backdrop-filter: blur(6px); }
+  .dhead { display: flex; gap: 20px; align-items: center; margin-bottom: 18px; }
+  .dhead h3 { font-size: 1.5rem; letter-spacing: -.02em; }
+  .dhead p { color: var(--muted); font-size: .92rem; }
+  .opt { display: flex; flex-direction: column; gap: 10px; padding: 16px; border-radius: 16px; border: 1px solid var(--line); background: var(--panel); margin-top: 12px; }
+  .opt h4 { font-size: 1rem; }
+  .opt p, .note { color: var(--muted); font-size: .9rem; }
+  label.f { display: flex; flex-direction: column; gap: 6px; font-size: .88rem; font-weight: 600; }
+  input.t { font: inherit; font-weight: 400; padding: 10px 14px; border-radius: 12px; border: 1px solid var(--line); background: rgba(255,255,255,.06); color: var(--text); }
+  input.t:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .steps { display: flex; flex-direction: column; gap: 10px; margin: 6px 0; counter-reset: s; }
+  .steps li { list-style: none; display: flex; gap: 10px; align-items: flex-start; }
+  .steps li::before { counter-increment: s; content: counter(s); flex-shrink: 0; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center;
+    font-size: .8rem; font-weight: 700; background: rgba(79,142,255,.2); color: #cfe0ff; }
+  .copy { font: inherit; font-size: .8rem; padding: 2px 10px; margin-left: 6px; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--text); cursor: pointer; }
+  .msg { font-size: .9rem; min-height: 1.2em; }
+  .msg.err { color: var(--bad); } .msg.ok { color: var(--ok); }
+  .x { position: absolute; top: 14px; right: 14px; width: 34px; height: 34px; border-radius: 50%; border: 0; background: rgba(255,255,255,.08); color: var(--text); cursor: pointer; font-size: 1.1rem; }
+
+  .howto { margin-top: 40px; padding: 22px 24px; border-radius: 20px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); }
   .howto b { color: var(--text); }
-  .err { color: var(--muted); padding: 30px 0; }
+  .err-box { color: var(--muted); padding: 30px 0; }
   footer { border-top: 1px solid var(--line); margin-top: 50px; padding: 28px 0 40px; color: var(--muted); font-size: .9rem; display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; }
   footer a { color: var(--muted); }
 </style>
@@ -119,19 +172,26 @@
 
   <header>
     <h1>Aero <span>Store</span></h1>
-    <p class="lead">Capes and badges you earn by playing, no real money involved. Collect Shards in game and spend them here in the client under <b>You &rarr; Store</b>.</p>
+    <p class="lead">Capes, badges, bundles and Shards. Pay with the Shards you earn by playing, or with PayPal. Click any item to buy it.</p>
     <div class="earn">
       <div><b id="payout">+10 Shards</b><small id="payoutSub">every 10 minutes in a world</small></div>
       <div><b>Daily streak</b><small>10 to 50 Shards for logging in every day</small></div>
       <div><b>Playtime milestones</b><small>up to 750 Shards at 100 hours</small></div>
     </div>
+    <div class="account" id="account"></div>
   </header>
 
-  <div id="store"><p class="err">Loading the store...</p></div>
+  <div id="store"><p class="err-box">Loading the store...</p></div>
+
+  <section id="myOrders" hidden>
+    <div class="head"><h2>Your orders</h2><span class="timer">Saved in this browser</span></div>
+    <div class="orders" id="orderList"></div>
+  </section>
 
   <div class="howto">
-    <b>How to buy:</b> open Aero Client in Minecraft, press Right Shift, go to <b>You &rarr; Store</b> and pick an item.
-    Purchases are tied to your Minecraft account, so they are checked in game and not on this page.
+    <b>How buying works.</b> With Shards: link your Minecraft account (in game: You &rarr; Store &rarr; Connect website) and buy here or in game, it arrives at once.
+    With PayPal: pick the item, enter your Minecraft name and pay with the order code in the PayPal note. Payments are checked by hand, so the item
+    arrives in game after the payment is confirmed, usually within 24 hours. Rejoin a world if you don't see it yet.
   </div>
 
   <footer>
@@ -140,43 +200,94 @@
   </footer>
 </div>
 
+<dialog id="buy" aria-labelledby="buyTitle"><div id="buyBody"></div></dialog>
+<dialog id="link" aria-labelledby="linkTitle">
+  <button class="x" type="button" aria-label="Close" onclick="this.closest('dialog').close()">&times;</button>
+  <h3 id="linkTitle" style="font-size:1.4rem;margin-bottom:8px">Link your Minecraft account</h3>
+  <ol class="steps">
+    <li>Open Aero Client in Minecraft and press Right Shift.</li>
+    <li>Go to <b>You &rarr; Store</b> and click <b>Connect website</b>. Your browser opens this page already linked.</li>
+    <li>On another device? Type the code shown in game here.</li>
+  </ol>
+  <form id="linkForm" class="opt">
+    <label class="f">Code from the game<input class="t" id="linkCode" autocomplete="off" maxlength="12" placeholder="ABCD2345" required></label>
+    <button class="btn primary" type="submit">Link account</button>
+    <p class="msg" id="linkMsg" role="status"></p>
+  </form>
+</dialog>
+
 <script>
   const ANIMATED = new Set(["galaxy", "samurai", "blossom"]);
   const GEM = '<svg class="gem" viewBox="0 0 16 16" aria-hidden="true"><path fill="#8fd0ff" d="M4 2h8l3 4-7 8-7-8z"/><path fill="#4f8eff" d="M8 14 1 6h14z" opacity=".55"/></svg>';
   const fmt = new Intl.NumberFormat();
+  const eur = (c) => new Intl.NumberFormat(undefined, { style: "currency", currency: "EUR" }).format(c / 100);
   let filter = "all";
   let data = null;
+  let me = null;
 
+  const $ = (id) => document.getElementById(id);
   function el(tag, cls, html) {
     const e = document.createElement(tag);
     if (cls) e.className = cls;
     if (html !== undefined) e.innerHTML = html;
     return e;
   }
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+  const store = { get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
+  async function api(path, opts = {}) {
+    const r = await fetch(path, { credentials: "same-origin", cache: "no-store", ...opts,
+      headers: opts.body ? { "content-type": "application/json" } : {} });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || "Something went wrong (" + r.status + ")");
+    return j;
+  }
 
-  function art(item) {
-    const [kind, id] = item.id.split(":");
-    if (kind !== "cape") return el("div", "badge", item.name[0]);
+  function capeArt(id) {
     const d = el("div", "cape");
     d.dataset.cape = id;
     d.style.backgroundImage = "url(/media/capes/" + id + (ANIMATED.has(id) ? "_0" : "") + ".png)";
     d.setAttribute("role", "img");
-    d.setAttribute("aria-label", item.name + " cape");
     return d;
   }
+  function art(p) {
+    if (p.kind === "shards") { const g = el("div", "", GEM); g.firstChild.setAttribute("class", "gembig"); return g; }
+    if (p.kind === "bundle") { const w = el("div", "capes"); p.items.forEach((i) => w.appendChild(capeArt(i.split(":")[1]))); return w; }
+    const [kind, id] = p.id.split(":");
+    if (kind !== "cape") return el("div", "badge", esc(p.name[0]));
+    const c = capeArt(id);
+    c.setAttribute("aria-label", p.name + " cape");
+    return c;
+  }
+  const owns = (id) => !!me && me.owned.includes(id);
 
-  function price(item) {
-    const was = item.base && item.price < item.base ? "<s>" + fmt.format(item.base) + "</s>" : "";
-    return el("span", "price", GEM + fmt.format(item.price) + " " + was);
+  // Everything buyable as one product shape: {id, name, kind, rarity, cents, shardPrice, base, items, shards, sub}
+  function asProduct(item) {
+    return { id: item.id, name: item.name, kind: item.id.split(":")[0], rarity: item.rarity, cents: data.money.items[item.id],
+      shardPrice: item.price, base: item.base, items: [item.id], shards: 0 };
   }
 
-  function card(item, off) {
-    const c = el("div", "item");
+  function priceLine(p) {
+    const w = el("div", "prices");
+    if (p.shardPrice !== undefined) {
+      const was = p.base && p.shardPrice < p.base ? "<s>" + fmt.format(p.base) + "</s>" : "";
+      w.appendChild(el("span", "price", GEM + fmt.format(p.shardPrice) + " " + was));
+    }
+    if (p.cents) w.appendChild(el("span", "price eur", eur(p.cents)));
+    return w;
+  }
+
+  function card(p, off) {
+    const c = el("button", "item");
+    c.type = "button";
+    c.setAttribute("aria-label", "Buy " + p.name);
     if (off) c.appendChild(el("span", "off", "-" + off + "%"));
-    c.appendChild(art(item));
-    c.appendChild(el("h3", "", item.name));
-    c.appendChild(el("span", "rar " + item.rarity, item.rarity));
-    c.appendChild(price(item));
+    if (p.items.length && p.items.every(owns) && !p.shards) c.appendChild(el("span", "owned", "Owned"));
+    c.appendChild(art(p));
+    c.appendChild(el("h3", "", esc(p.name)));
+    if (p.rarity) c.appendChild(el("span", "rar " + p.rarity, p.rarity));
+    if (p.sub) c.appendChild(el("span", "sub", esc(p.sub)));
+    c.appendChild(priceLine(p));
+    c.onclick = () => openBuy(p);
     return c;
   }
 
@@ -186,66 +297,287 @@
     return (d ? d + "d " : "") + h + "h " + String(m).padStart(2, "0") + "m " + String(sec).padStart(2, "0") + "s";
   }
 
-  function render() {
-    const root = document.getElementById("store");
-    root.textContent = "";
-    const f = data.featured;
+  function section(title, timerId) {
+    const s = el("section");
+    const h = el("div", "head");
+    h.appendChild(el("h2", "", title));
+    if (timerId) { const t = el("span", "timer"); t.id = timerId; h.appendChild(t); }
+    s.appendChild(h);
+    return s;
+  }
 
-    const s1 = el("section");
-    const h1 = el("div", "head");
-    h1.appendChild(el("h2", "", "Featured this week"));
-    h1.appendChild(el("span", "timer", "")).id = "weekTimer";
-    s1.appendChild(h1);
-    const fc = el("div", "featured");
+  function render() {
+    const root = $("store");
+    root.textContent = "";
+    const f = asProduct(data.featured);
+
+    const s1 = section("Featured this week", "weekTimer");
+    const fc = el("button", "featured");
+    fc.type = "button";
+    fc.setAttribute("aria-label", "Buy " + f.name);
     fc.appendChild(art(f));
     const info = el("div", "info");
     info.appendChild(el("span", "rar " + f.rarity, f.rarity));
-    info.appendChild(el("h3", "", f.name));
-    info.appendChild(el("p", "", "<span style='color:var(--ok);font-weight:700'>" + f.off + "% off</span> until the week ends"));
-    const p = price(f);
-    p.style.fontSize = "1.4rem";
-    p.style.marginTop = "10px";
-    info.appendChild(p);
+    info.appendChild(el("h3", "", esc(f.name)));
+    info.appendChild(el("p", "", "<span style='color:var(--ok);font-weight:700'>" + data.featured.off + "% off</span> in Shards until the week ends"));
+    const pl = priceLine(f);
+    pl.style.cssText = "font-size:1.3rem;margin-top:10px;justify-content:flex-start";
+    info.appendChild(pl);
     fc.appendChild(info);
+    fc.onclick = () => openBuy(f);
     s1.appendChild(fc);
     root.appendChild(s1);
 
-    const s2 = el("section");
-    const h2 = el("div", "head");
-    h2.appendChild(el("h2", "", "Daily deals"));
-    h2.appendChild(el("span", "timer", "")).id = "dayTimer";
-    s2.appendChild(h2);
+    const s2 = section("Daily deals", "dayTimer");
     const g2 = el("div", "grid");
-    for (const it of data.daily) g2.appendChild(card(it, it.off));
+    for (const it of data.daily) g2.appendChild(card(asProduct(it), it.off));
     s2.appendChild(g2);
     root.appendChild(s2);
 
-    const s3 = el("section");
-    const h3 = el("div", "head");
-    h3.appendChild(el("h2", "", "All items"));
+    const s3 = section("Bundles");
+    const g3 = el("div", "grid wide");
+    for (const b of data.money.bundles) {
+      g3.appendChild(card({ id: b.id, name: b.name, kind: "bundle", cents: b.cents, items: b.items, shards: b.shards,
+        sub: b.names.join(", ") + " + " + fmt.format(b.shards) + " Shards" }));
+    }
+    s3.appendChild(g3);
+    root.appendChild(s3);
+
+    const s4 = section("Shard packs");
+    const g4 = el("div", "grid");
+    for (const pk of data.money.packs) g4.appendChild(card({ id: pk.id, name: pk.name, kind: "shards", cents: pk.cents, items: [], shards: pk.shards, sub: "Spend in game or here" }));
+    s4.appendChild(g4);
+    root.appendChild(s4);
+
+    const s5 = section("All items");
     const fl = el("div", "filters");
     for (const r of ["all", "common", "uncommon", "rare", "legendary"]) {
       const b = el("button", r === filter ? "on" : "", r[0].toUpperCase() + r.slice(1));
+      b.type = "button";
+      b.setAttribute("aria-pressed", r === filter);
       b.onclick = () => { filter = r; render(); };
       fl.appendChild(b);
     }
-    h3.appendChild(fl);
-    s3.appendChild(h3);
-    const g3 = el("div", "grid");
+    s5.firstChild.appendChild(fl);
+    const g5 = el("div", "grid");
     const order = { common: 0, uncommon: 1, rare: 2, legendary: 3 };
     const list = data.catalog.filter((c) => filter === "all" || c.rarity === filter)
       .sort((a, b) => order[a.rarity] - order[b.rarity] || a.name.localeCompare(b.name));
-    for (const it of list) g3.appendChild(card(it, it.price < it.base ? Math.round(100 - it.price / it.base * 100) : 0));
-    s3.appendChild(g3);
-    root.appendChild(s3);
+    for (const it of list) g5.appendChild(card(asProduct(it), it.price < it.base ? Math.round(100 - it.price / it.base * 100) : 0));
+    s5.appendChild(g5);
+    root.appendChild(s5);
     tick();
   }
 
+  // ---- buying --------------------------------------------------------------------------------
+  function openBuy(p) {
+    const box = $("buyBody");
+    box.textContent = "";
+    const x = el("button", "x", "&times;");
+    x.type = "button";
+    x.setAttribute("aria-label", "Close");
+    x.onclick = () => $("buy").close();
+    box.appendChild(x);
+    const head = el("div", "dhead");
+    head.appendChild(art(p));
+    const t = el("div");
+    const h = el("h3", "", esc(p.name));
+    h.id = "buyTitle";
+    t.appendChild(h);
+    if (p.rarity) t.appendChild(el("span", "rar " + p.rarity, p.rarity));
+    if (p.sub) t.appendChild(el("p", "", esc(p.sub)));
+    head.appendChild(t);
+    box.appendChild(head);
+
+    const ownedAll = p.items.length && !p.shards && p.items.every(owns);
+    if (ownedAll) box.appendChild(el("p", "note", "You already own this."));
+
+    if (p.shardPrice !== undefined && !ownedAll) {
+      const o = el("div", "opt");
+      o.appendChild(el("h4", "", "Pay with Shards"));
+      const msg = el("p", "msg");
+      msg.setAttribute("role", "status");
+      if (!me) {
+        o.appendChild(el("p", "", "Link your Minecraft account to spend the Shards you earned in game."));
+        const b = el("button", "btn", "Link account");
+        b.type = "button";
+        b.onclick = () => { $("buy").close(); $("link").showModal(); };
+        o.appendChild(b);
+      } else {
+        const free = me.betaFree.includes(p.id);
+        const cost = free ? 0 : p.shardPrice;
+        o.appendChild(el("p", "", free ? "Free for you (beta cape)." : "You have " + fmt.format(me.shards) + " Shards."));
+        const b = el("button", "btn primary", free ? "Get it free" : "Buy for " + GEM + " " + fmt.format(cost));
+        b.type = "button";
+        b.disabled = !free && me.shards < cost;
+        if (b.disabled) msg.textContent = "Not enough Shards yet.";
+        b.onclick = async () => {
+          b.disabled = true;
+          try {
+            await api("/api/web/buy", { method: "POST", body: JSON.stringify({ item: p.id, price: cost }) });
+            msg.className = "msg ok";
+            msg.textContent = "Bought! It's in your wardrobe now.";
+            await loadMe();
+            render();
+          } catch (e) {
+            msg.className = "msg err";
+            msg.textContent = e.message;
+            b.disabled = false;
+          }
+        };
+        o.appendChild(b);
+      }
+      o.appendChild(msg);
+      box.appendChild(o);
+    }
+
+    if (p.cents && !ownedAll) {
+      const o = el("form", "opt");
+      o.appendChild(el("h4", "", "Pay with PayPal &middot; " + eur(p.cents)));
+      const l1 = el("label", "f", "Minecraft name");
+      const name = el("input", "t");
+      name.required = true;
+      name.maxLength = 16;
+      name.autocomplete = "off";
+      name.value = me ? me.name : store.get("aeroPlayer") || "";
+      l1.appendChild(name);
+      o.appendChild(l1);
+      const l2 = el("label", "f", "Discord name <span style='color:var(--muted);font-weight:400'>(optional, if we need to reach you)</span>");
+      const contact = el("input", "t");
+      contact.maxLength = 64;
+      contact.autocomplete = "off";
+      l2.appendChild(contact);
+      o.appendChild(l2);
+      const b = el("button", "btn primary", "Continue to payment");
+      b.type = "submit";
+      o.appendChild(b);
+      const msg = el("p", "msg err");
+      msg.setAttribute("role", "status");
+      o.appendChild(msg);
+      o.onsubmit = async (ev) => {
+        ev.preventDefault();
+        b.disabled = true;
+        msg.textContent = "";
+        try {
+          const r = await api("/api/orders", { method: "POST", body: JSON.stringify({ product: p.id, player: name.value.trim(), contact: contact.value.trim() }) });
+          store.set("aeroPlayer", r.player);
+          const saved = store.get("aeroOrders") || [];
+          saved.unshift({ code: r.code, name: r.product, cents: r.cents, player: r.player });
+          store.set("aeroOrders", saved.slice(0, 20));
+          showPayment(r);
+          renderOrders();
+        } catch (e) {
+          msg.textContent = e.message;
+          b.disabled = false;
+        }
+      };
+      box.appendChild(o);
+    }
+    $("buy").showModal();
+  }
+
+  function copyBtn(text) {
+    const b = el("button", "copy", "Copy");
+    b.type = "button";
+    b.onclick = async () => { try { await navigator.clipboard.writeText(text); b.textContent = "Copied"; } catch { b.textContent = text; } };
+    return b;
+  }
+
+  function showPayment(r) {
+    const box = $("buyBody");
+    box.textContent = "";
+    const x = el("button", "x", "&times;");
+    x.type = "button";
+    x.setAttribute("aria-label", "Close");
+    x.onclick = () => $("buy").close();
+    box.appendChild(x);
+    const h = el("h3", "", "Order " + esc(r.code));
+    h.id = "buyTitle";
+    h.style.cssText = "font-size:1.4rem;margin-bottom:4px";
+    box.appendChild(h);
+    box.appendChild(el("p", "note", esc(r.product) + " for " + esc(r.player)));
+    const steps = el("ol", "steps");
+    steps.style.marginTop = "16px";
+    const s1 = el("li", "", "<span>Send <b>" + eur(r.cents) + "</b> with PayPal" + (r.method ? " as <b>" + esc(r.method) + "</b>" : "") + " to <b>" + esc(r.paypal) + "</b></span>");
+    s1.lastChild.appendChild(copyBtn(r.paypal));
+    const s2 = el("li", "", "<span>Write <b>" + esc(r.code) + "</b> in the PayPal note</span>");
+    s2.lastChild.appendChild(copyBtn(r.code));
+    const s3 = el("li", "", "<span>Your order is confirmed by hand after the payment arrives, usually within 24 hours. This page shows the status below.</span>");
+    steps.append(s1, s2, s3);
+    box.appendChild(steps);
+    const a = el("a", "btn primary", "Open PayPal");
+    a.href = "https://www.paypal.com/myaccount/transfer/homepage/pay";
+    a.target = "_blank";
+    a.rel = "noopener";
+    a.style.marginTop = "12px";
+    box.appendChild(a);
+  }
+
+  // ---- orders saved in this browser ------------------------------------------------------------
+  async function renderOrders() {
+    const saved = store.get("aeroOrders") || [];
+    $("myOrders").hidden = saved.length === 0;
+    const list = $("orderList");
+    list.textContent = "";
+    for (const o of saved) {
+      const row = el("div", "order");
+      row.innerHTML = "<code>" + esc(o.code) + "</code><span>" + esc(o.name) + " &middot; " + esc(o.player) + "</span><span>" + eur(o.cents) + "</span>";
+      const st = el("span", "st pending", "Checking...");
+      row.appendChild(st);
+      list.appendChild(row);
+      api("/api/orders/" + encodeURIComponent(o.code)).then((r) => {
+        st.className = "st " + r.status;
+        st.textContent = r.status === "pending" ? "Waiting for payment" : r.status === "paid" ? "Paid, delivered" : "Cancelled";
+      }).catch(() => { st.textContent = "Unknown"; });
+    }
+  }
+
+  // ---- website link (Shards) ---------------------------------------------------------------------
+  async function loadMe() {
+    try { me = await api("/api/web/me"); } catch { me = null; }
+    const a = $("account");
+    a.textContent = "";
+    if (me) {
+      const who = el("div");
+      who.innerHTML = "<img alt='' src='https://mc-heads.net/avatar/" + encodeURIComponent(me.name) + "/64'><span class='who'>" + esc(me.name) +
+        "</span> <span class='muted'>&middot; " + GEM + " " + fmt.format(me.shards) + " Shards</span>";
+      const out = el("button", "btn", "Log out");
+      out.type = "button";
+      out.onclick = async () => { await api("/api/web/logout", { method: "POST", body: "{}" }).catch(() => {}); await loadMe(); render(); };
+      a.append(who, out);
+    } else {
+      const t = el("div", "", "<span class='who'>Pay with your Shards</span><br><span class='muted'>Link your Minecraft account from the in-game menu to buy with the Shards you earned.</span>");
+      const b = el("button", "btn primary", "Link account");
+      b.type = "button";
+      b.onclick = () => $("link").showModal();
+      a.append(t, b);
+    }
+  }
+
+  async function login(code) {
+    const msg = $("linkMsg");
+    msg.className = "msg";
+    msg.textContent = "Linking...";
+    try {
+      const r = await api("/api/web/login", { method: "POST", body: JSON.stringify({ code }) });
+      msg.className = "msg ok";
+      msg.textContent = "Linked as " + r.name + ".";
+      await loadMe();
+      if (data) render();
+      setTimeout(() => $("link").close(), 700);
+    } catch (e) {
+      msg.className = "msg err";
+      msg.textContent = e.message;
+    }
+  }
+  $("linkForm").onsubmit = (ev) => { ev.preventDefault(); login($("linkCode").value); };
+
+  // ---- timers, animation, load -------------------------------------------------------------------
   function tick() {
     if (!data) return;
     const now = Date.now();
-    const w = document.getElementById("weekTimer");
-    const d = document.getElementById("dayTimer");
+    const w = $("weekTimer");
+    const d = $("dayTimer");
     if (w) w.textContent = "Ends in " + left(data.weekEndsAt - now);
     if (d) d.textContent = "New deals in " + left(data.dayEndsAt - now);
     if (now > data.dayEndsAt + 2000) load();
@@ -261,23 +593,34 @@
 
   async function load() {
     try {
-      const r = await fetch("/api/store", { cache: "no-store" });
-      if (!r.ok) throw new Error(r.status);
-      data = await r.json();
+      data = await api("/api/store");
+      if (!data.money) throw new Error("old server");
       if (data.payout) {
-        document.getElementById("payout").textContent = "+" + data.payout.shards + " Shards";
-        document.getElementById("payoutSub").textContent = "every " + Math.round(data.payout.every / 60000) + " minutes in a world";
+        $("payout").textContent = "+" + data.payout.shards + " Shards";
+        $("payoutSub").textContent = "every " + Math.round(data.payout.every / 60000) + " minutes in a world";
       }
       render();
     } catch (e) {
       data = null;
-      document.getElementById("store").innerHTML = "<p class='err'>The store could not be loaded right now. Try again in a minute.</p>";
+      $("store").innerHTML = "<p class='err-box'>The store could not be loaded right now. Try again in a minute.</p>";
     }
   }
 
-  // Preload the animation frames so they don't flicker.
+  (async () => {
+    const q = new URLSearchParams(location.search);
+    const code = q.get("link");
+    if (code) {
+      history.replaceState(null, "", location.pathname);
+      $("link").showModal();
+      $("linkCode").value = code;
+      await login(code);
+    } else {
+      await loadMe();
+    }
+    await load();
+    renderOrders();
+  })();
   for (const id of ANIMATED) for (let i = 0; i < 8; i++) new Image().src = "/media/capes/" + id + "_" + i + ".png";
-  load();
   setInterval(tick, 1000);
   if (!matchMedia("(prefers-reduced-motion: reduce)").matches) setInterval(animate, 150);
 </script>

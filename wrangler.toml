@@ -17,6 +17,14 @@ MOD_ASSET = "aero-client.jar"
 LAUNCHER_ASSET = "Aero-Client.exe"
 # Comma-separated Minecraft UUIDs that get the Owner rank (rank cape + badges). Other ranks: UPDATE wallets SET rank = 'staff' ...
 OWNER_UUIDS = "25d36f59d8d1476d91db200ccc56cab7"
+# Website shop: buyers pay by PayPal with their order code in the note; orders are confirmed at /admin.
+PAYPAL_EMAIL = "k1ngf3rdi@gmail.com"
+PAYPAL_METHOD = "Friends & Family"
+# Admin login (/admin) with Discord: the app's client id here, its secret via
+#   npx wrangler secret put DISCORD_CLIENT_SECRET -c wrangler.toml
+# and the Discord user ids that may see and confirm orders (comma-separated).
+DISCORD_CLIENT_ID = ""
+ADMIN_DISCORD_IDS = ""
 
 [[d1_databases]]
 binding = "DB"

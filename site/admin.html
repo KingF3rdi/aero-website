@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Aero Orders</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='4' fill='%230b0d14'/%3E%3Cpath fill='%234f8eff' d='M5 13V6l2-3h2l2 3v7H9.5v-2.5h-3V13zm1.5-4h3V7l-1-1.5L6.5 7z'/%3E%3C/svg%3E">
+<style>
+  :root { --bg: #07080d; --panel: rgba(255,255,255,.045); --line: rgba(255,255,255,.10); --text: #f2f4fb; --muted: #9aa3b8;
+    --accent: #4f8eff; --ok: #4be38a; --warn: #ffb33d; --bad: #ff6b6b; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; }
+  .wrap { width: min(1180px, 100% - 32px); margin: 0 auto; padding-bottom: 60px; }
+  nav { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 22px 0; }
+  .brand { display: flex; align-items: center; gap: 12px; font-weight: 700; letter-spacing: .04em; text-decoration: none; color: var(--text); }
+  .brand svg { width: 30px; height: 30px; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 9px 16px; border-radius: 999px; font: inherit; font-weight: 600;
+    font-size: .88rem; cursor: pointer; text-decoration: none; color: var(--text); border: 1px solid var(--line); background: var(--panel); }
+  .btn:hover { border-color: rgba(255,255,255,.28); }
+  .btn.discord { background: #5865f2; border-color: transparent; }
+  .btn.ok { background: #16794a; border-color: transparent; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  h1 { font-size: 2rem; letter-spacing: -.02em; margin: 10px 0 6px; }
+  .muted { color: var(--muted); }
+  .card { padding: 26px; border-radius: 20px; border: 1px solid var(--line); background: var(--panel); margin-top: 20px; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin: 18px 0; }
+  .stat { padding: 16px 18px; border-radius: 16px; border: 1px solid var(--line); background: var(--panel); }
+  .stat b { display: block; font-size: 1.6rem; font-variant-numeric: tabular-nums; }
+  .filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+  .filters button { font: inherit; font-size: .85rem; padding: 6px 14px; border-radius: 999px; cursor: pointer; color: var(--muted); border: 1px solid var(--line); background: var(--panel); }
+  .filters button.on { color: var(--text); border-color: rgba(79,142,255,.7); background: rgba(79,142,255,.18); }
+  .tablewrap { overflow-x: auto; border-radius: 16px; border: 1px solid var(--line); }
+  table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+  th, td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th { color: var(--muted); font-weight: 600; font-size: .8rem; text-transform: uppercase; letter-spacing: .05em; background: rgba(255,255,255,.03); }
+  tr:last-child td { border-bottom: 0; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  td img { width: 22px; height: 22px; border-radius: 5px; vertical-align: middle; margin-right: 8px; image-rendering: pixelated; }
+  code { font-weight: 700; }
+  .st { font-size: .78rem; font-weight: 700; padding: 2px 10px; border-radius: 999px; }
+  .st.pending { background: rgba(255,179,61,.16); color: var(--warn); }
+  .st.paid { background: rgba(75,227,138,.16); color: var(--ok); }
+  .st.cancelled { background: rgba(255,107,107,.16); color: var(--bad); }
+  .acts { display: flex; gap: 6px; }
+  .msg { min-height: 1.3em; margin-top: 8px; }
+  .msg.err { color: var(--bad); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav>
+    <a class="brand" href="/">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><rect width="16" height="16" rx="4" fill="#0b0d14"/><path fill="#4f8eff" d="M5 13V6l2-3h2l2 3v7H9.5v-2.5h-3V13zm1.5-4h3V7l-1-1.5L6.5 7z"/></svg>
+      AERO ORDERS
+    </a>
+    <div id="who"></div>
+  </nav>
+  <main id="main"><p class="muted">Loading...</p></main>
+</div>
+<script>
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+  const eur = (c) => new Intl.NumberFormat(undefined, { style: "currency", currency: "EUR" }).format(c / 100);
+  const when = (t) => new Date(t).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" });
+  let orders = [];
+  let filter = "pending";
+
+  async function api(path, opts = {}) {
+    const r = await fetch(path, { credentials: "same-origin", cache: "no-store", ...opts });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { const e = new Error(j.error || "Error " + r.status); e.status = r.status; throw e; }
+    return j;
+  }
+
+  function loginView() {
+    const q = new URLSearchParams(location.search);
+    let note = "Only Discord accounts on the admin list can see orders.";
+    if (q.get("denied") !== null) note = "This Discord account is not an admin. Its Discord ID is <code>" + esc(q.get("denied")) + "</code>: add it to ADMIN_DISCORD_IDS in wrangler.toml and deploy.";
+    if (q.get("error") === "setup") note = "Discord login isn't set up yet: DISCORD_CLIENT_ID (wrangler.toml) and the DISCORD_CLIENT_SECRET secret are missing.";
+    if (q.get("error") === "state") note = "The login took too long or was opened in another browser. Try again.";
+    if (q.get("error") === "discord") note = "Discord didn't accept the login. Check the app's client secret and redirect URL.";
+    $("main").innerHTML = "<div class='card'><h1>Orders</h1><p class='muted' style='margin-bottom:18px'>" + note +
+      "</p><a class='btn discord' href='/api/admin/login'>Log in with Discord</a></div>";
+  }
+
+  function render() {
+    const pending = orders.filter((o) => o.status === "pending");
+    const paid = orders.filter((o) => o.status === "paid");
+    const shown = filter === "all" ? orders : orders.filter((o) => o.status === filter);
+    const rows = shown.map((o) => "<tr><td>" + when(o.created) + "</td><td><code>" + esc(o.code) + "</code></td><td>" + esc(o.name) +
+      "</td><td><img alt='' src='https://mc-heads.net/avatar/" + encodeURIComponent(o.player) + "/44'>" + esc(o.player) +
+      "</td><td>" + esc(o.contact || "–") + "</td><td class='num'>" + eur(o.cents) + "</td><td><span class='st " + esc(o.status) + "'>" + esc(o.status) +
+      "</span>" + (o.done_by ? " <span class='muted'>by " + esc(o.done_by) + "</span>" : "") + "</td><td>" +
+      (o.status === "pending" ? "<div class='acts'><button class='btn ok' data-a='paid' data-c='" + esc(o.code) + "'>Mark paid</button><button class='btn' data-a='cancel' data-c='" +
+        esc(o.code) + "'>Cancel</button></div>" : "") + "</td></tr>").join("");
+    $("main").innerHTML =
+      "<h1>Orders</h1><p class='muted'>Check PayPal for a payment with the order code in the note, then mark the order paid. That delivers the items and Shards.</p>" +
+      "<div class='stats'><div class='stat'><span class='muted'>Waiting for payment</span><b>" + pending.length + "</b></div>" +
+      "<div class='stat'><span class='muted'>Paid orders</span><b>" + paid.length + "</b></div>" +
+      "<div class='stat'><span class='muted'>Paid total</span><b>" + eur(paid.reduce((a, o) => a + o.cents, 0)) + "</b></div></div>" +
+      "<div class='filters' role='group' aria-label='Filter orders'>" + ["pending", "paid", "cancelled", "all"].map((f) =>
+        "<button type='button' data-f='" + f + "' aria-pressed='" + (f === filter) + "' class='" + (f === filter ? "on" : "") + "'>" + f[0].toUpperCase() + f.slice(1) + "</button>").join("") + "</div>" +
+      "<div class='tablewrap'><table><thead><tr><th>Date</th><th>Code</th><th>Product</th><th>Player</th><th>Contact</th><th class='num'>Amount</th><th>Status</th><th></th></tr></thead><tbody>" +
+      (rows || "<tr><td colspan='8' class='muted'>No orders here.</td></tr>") + "</tbody></table></div><p class='msg err' id='msg' role='status'></p>";
+    document.querySelectorAll("[data-f]").forEach((b) => (b.onclick = () => { filter = b.dataset.f; render(); }));
+    document.querySelectorAll("[data-a]").forEach((b) => (b.onclick = () => act(b)));
+  }
+
+  async function act(b) {
+    const o = orders.find((x) => x.code === b.dataset.c);
+    const paid = b.dataset.a === "paid";
+    if (!confirm(paid ? "Mark " + o.code + " (" + eur(o.cents) + " from " + o.player + ") as paid and deliver " + o.name + "?" : "Cancel order " + o.code + "?")) return;
+    b.disabled = true;
+    try {
+      await api("/api/admin/orders/" + o.code + "/" + b.dataset.a, { method: "POST" });
+      await load();
+    } catch (e) {
+      $("msg").textContent = e.message;
+      b.disabled = false;
+    }
+  }
+
+  async function load() {
+    try {
+      const me = await api("/api/admin/me");
+      $("who").innerHTML = "<span class='muted'>" + esc(me.name) + "</span> <button class='btn' id='out' type='button'>Log out</button>";
+      $("out").onclick = async () => { await api("/api/admin/logout", { method: "POST" }).catch(() => {}); location.href = "/admin"; };
+      orders = (await api("/api/admin/orders")).orders;
+      render();
+    } catch (e) {
+      if (e.status === 401) loginView();
+      else $("main").innerHTML = "<p class='muted'>" + esc(e.message) + "</p>";
+    }
+  }
+  load();
+  setInterval(() => { if (!document.hidden && $("who").innerHTML) load(); }, 30000); // new orders show up by themselves
+</script>
+</body>
+</html>

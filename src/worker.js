@@ -351,6 +351,290 @@ async function walletView(env, uuid, now) {
   };
 }
 
+/** Buys a catalog item with Shards; shared by the mod (/api/store/buy) and the website (/api/web/buy). */
+async function buyWithShards(env, uuid, body, now) {
+  const id = String(body.item || "");
+  const item = catalogItem(id);
+  if (!item) return json({ error: "Unknown item" }, 400);
+  const w = await wallet(env, uuid);
+  if ((await ownedItems(env, uuid)).includes(id)) return json({ error: "You already own this" }, 409);
+  const free = w.beta_free === 1 && BETA_FREE.includes(id);
+  const price = free ? 0 : priceNow(id, now);
+  // The client sends the price it showed; a rotation that flipped in between must not surprise anyone.
+  if (body.price !== undefined && Number(body.price) !== price) return json({ error: "The price just changed, check it again" }, 409);
+  const pay = free
+    ? env.DB.prepare("UPDATE wallets SET beta_free = 0 WHERE uuid = ?1 AND beta_free = 1").bind(uuid)
+    : env.DB.prepare("UPDATE wallets SET shards = shards - ?1 WHERE uuid = ?2 AND shards >= ?1").bind(price, uuid);
+  const res = await pay.run();
+  if (res.meta.changes !== 1) return json({ error: free ? "Free cape already used" : "Not enough shards" }, 402);
+  await env.DB.batch([
+    env.DB.prepare("INSERT OR IGNORE INTO owned (uuid, item, at) VALUES (?1, ?2, ?3)").bind(uuid, id, now),
+    ledgerRow(env, uuid, -price, free ? `${item.name} (free beta cape)` : item.name, now),
+  ]);
+  return json({ bought: id, price, ...(await walletView(env, uuid, now)) });
+}
+
+// ---- website shop -----------------------------------------------------------------------------
+// Real money: an order gets a code, the buyer pays by PayPal with the code in the note, and an admin
+// (Discord login) marks it paid, which grants the items/Shards. Shards: a player links the website
+// from the in-game menu (one-time code) and then buys with their wallet here too.
+const EUR_BY_RARITY = { common: 49, uncommon: 99, rare: 149, legendary: 249 }; // euro cents
+const SHARD_PACKS = [
+  { id: "shards:500", name: "500 Shards", shards: 500, cents: 99 },
+  { id: "shards:1500", name: "1,500 Shards", shards: 1500, cents: 249 },
+  { id: "shards:4000", name: "4,000 Shards", shards: 4000, cents: 499 },
+];
+const BUNDLES = [
+  { id: "bundle:starter", name: "Starter bundle", items: ["cape:frost", "cape:ember", "cape:tide"], shards: 300, cents: 99 },
+  { id: "bundle:legendary", name: "Legendary bundle", items: ["cape:galaxy", "cape:samurai", "cape:blossom"], shards: 1000, cents: 599 },
+];
+const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // 32 symbols, no 0/O/1/I
+const WEB_SESSION_MS = 30 * DAY_MS;
+const ADMIN_SESSION_MS = 7 * DAY_MS;
+const LINK_MS = 10 * 60 * 1000;
+
+/** What a product costs (euro cents) and what it grants; null for an unknown id. */
+function product(id) {
+  const pack = SHARD_PACKS.find((x) => x.id === id);
+  if (pack) return { id, name: pack.name, kind: "shards", cents: pack.cents, items: [], shards: pack.shards };
+  const b = BUNDLES.find((x) => x.id === id);
+  if (b) return { id, name: b.name, kind: "bundle", cents: b.cents, items: b.items, shards: b.shards };
+  const item = catalogItem(id);
+  if (item) return { id, name: item.name, kind: id.split(":")[0], cents: EUR_BY_RARITY[item.rarity] || 99, items: [id], shards: 0 };
+  return null;
+}
+
+function moneyCatalog(env) {
+  return {
+    currency: "EUR",
+    paypal: env.PAYPAL_EMAIL || "",
+    method: env.PAYPAL_METHOD || "",
+    items: Object.fromEntries(CATALOG.map((c) => [c.id, EUR_BY_RARITY[c.rarity] || 99])),
+    packs: SHARD_PACKS,
+    bundles: BUNDLES.map((b) => ({ ...b, names: b.items.map((i) => (catalogItem(i) || { name: i }).name) })),
+  };
+}
+
+let shopReady = false;
+async function ensureShop(env) {
+  if (shopReady) return;
+  await ensureEconomy(env);
+  await env.DB.batch([
+    env.DB.prepare(
+      `CREATE TABLE IF NOT EXISTS orders (
+         code TEXT PRIMARY KEY, product TEXT NOT NULL, name TEXT NOT NULL, cents INTEGER NOT NULL,
+         uuid TEXT NOT NULL, player TEXT NOT NULL, contact TEXT NOT NULL DEFAULT '', ip TEXT NOT NULL DEFAULT '',
+         status TEXT NOT NULL DEFAULT 'pending', created INTEGER NOT NULL, done_at INTEGER NOT NULL DEFAULT 0, done_by TEXT NOT NULL DEFAULT ''
+       )`
+    ),
+    env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_orders_created ON orders(created)"),
+    env.DB.prepare("CREATE TABLE IF NOT EXISTS link_codes (code TEXT PRIMARY KEY, uuid TEXT NOT NULL, name TEXT NOT NULL, exp INTEGER NOT NULL)"),
+  ]);
+  shopReady = true;
+}
+
+function randomCode(n) {
+  return [...crypto.getRandomValues(new Uint8Array(n))].map((b) => CODE_ALPHABET[b % 32]).join("");
+}
+
+/** Signed cookie values. `k` names the kind so a mod token or another cookie can't stand in for this one. */
+async function sign(env, data) {
+  const body = b64url(enc.encode(JSON.stringify(data)));
+  return `${body}.${b64url(await hmac(env.TOKEN_SECRET, body))}`;
+}
+
+async function unsign(env, token, kind) {
+  const [body, sig] = String(token || "").split(".");
+  if (!body || !sig || !safeEqual(sig, b64url(await hmac(env.TOKEN_SECRET, body)))) return null;
+  try {
+    const d = JSON.parse(atob(body.replace(/-/g, "+").replace(/_/g, "/")));
+    return d.k === kind && d.e > Date.now() ? d : null;
+  } catch {
+    return null;
+  }
+}
+
+function cookie(request, name) {
+  for (const part of (request.headers.get("cookie") || "").split(";")) {
+    const [k, ...v] = part.trim().split("=");
+    if (k === name) return v.join("=");
+  }
+  return null;
+}
+
+const setCookie = (name, value, ms) => `${name}=${value}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${Math.floor(ms / 1000)}`;
+
+/** Cookie-authenticated writes must come from our own pages. */
+const sameOrigin = (request, url) => (request.headers.get("origin") || url.origin) === url.origin;
+
+const adminIds = (env) => String(env.ADMIN_DISCORD_IDS || "").split(/[ ,]+/).filter(Boolean);
+
+async function mojangProfile(name) {
+  if (!/^[A-Za-z0-9_]{3,16}$/.test(name)) return null;
+  const r = await fetch(`https://api.mojang.com/users/profiles/minecraft/${name}`);
+  if (r.status !== 200) return null;
+  const p = await r.json().catch(() => null);
+  return p && p.id ? { uuid: String(p.id).toLowerCase(), name: p.name } : null;
+}
+
+/** Gives a paid order's items and Shards to the player. */
+async function grantOrder(env, o, now) {
+  const p = product(o.product);
+  await wallet(env, o.uuid);
+  const stmts = (p ? p.items : []).map((i) => env.DB.prepare("INSERT OR IGNORE INTO owned (uuid, item, at) VALUES (?1, ?2, ?3)").bind(o.uuid, i, now));
+  const shards = p ? p.shards : 0;
+  if (shards) stmts.push(env.DB.prepare("UPDATE wallets SET shards = shards + ?1 WHERE uuid = ?2").bind(shards, o.uuid));
+  stmts.push(ledgerRow(env, o.uuid, shards, `${o.name} (order ${o.code})`, now));
+  await env.DB.batch(stmts);
+}
+
+function redirect(location, cookies = []) {
+  const h = new Headers({ location });
+  for (const c of cookies) h.append("set-cookie", c);
+  return new Response(null, { status: 302, headers: h });
+}
+
+/** Routes under /api/orders, /api/link, /api/web/ and /api/admin/; null when the path isn't one of them. */
+async function shopRoutes(request, env, url) {
+  const path = url.pathname;
+  const method = request.method;
+  const now = Date.now();
+
+  if (path === "/api/orders" && method === "POST") {
+    if (!sameOrigin(request, url)) return json({ error: "forbidden" }, 403);
+    await ensureShop(env);
+    const body = await request.json().catch(() => ({}));
+    const p = product(String(body.product || ""));
+    if (!p) return json({ error: "Unknown product" }, 400);
+    const player = await mojangProfile(String(body.player || "").trim());
+    if (!player) return json({ error: "That Minecraft name doesn't exist" }, 400);
+    const owned = await ownedItems(env, player.uuid);
+    if (!p.shards && p.items.every((i) => owned.includes(i))) return json({ error: `${player.name} already owns this` }, 409);
+    // Rate limit per address; only a keyed hash of it is stored.
+    const ip = hex(await hmac(env.TOKEN_SECRET, "ip:" + (request.headers.get("cf-connecting-ip") || ""))).slice(0, 16);
+    const recent = await env.DB.prepare("SELECT COUNT(*) AS n FROM orders WHERE ip = ?1 AND created > ?2").bind(ip, now - 3600000).first();
+    if (recent.n >= 5) return json({ error: "Too many orders, try again in an hour" }, 429);
+    const code = "AERO-" + randomCode(6);
+    const contact = String(body.contact || "").trim().slice(0, 64);
+    await env.DB.prepare("INSERT INTO orders (code, product, name, cents, uuid, player, contact, ip, created) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)")
+      .bind(code, p.id, p.name, p.cents, player.uuid, player.name, contact, ip, now)
+      .run();
+    return json({ code, product: p.name, cents: p.cents, player: player.name, paypal: env.PAYPAL_EMAIL || "", method: env.PAYPAL_METHOD || "" });
+  }
+
+  if (path.startsWith("/api/orders/") && method === "GET") {
+    await ensureShop(env);
+    const o = await env.DB.prepare("SELECT code, name, cents, player, status, created FROM orders WHERE code = ?")
+      .bind(path.slice("/api/orders/".length).toUpperCase())
+      .first();
+    return o ? json(o) : json({ error: "not found" }, 404);
+  }
+
+  // In game: a one-time code (and a link with it) that logs the website into this player's wallet.
+  if (path === "/api/link" && method === "POST") {
+    const who = await readToken(env, request);
+    if (!who) return json({ error: "unauthorized" }, 401);
+    if (who.g) return json({ error: "Linking needs a verified Microsoft account" }, 403);
+    await ensureShop(env);
+    await env.DB.prepare("DELETE FROM link_codes WHERE exp < ?1 OR uuid = ?2").bind(now, who.u).run();
+    const code = randomCode(8);
+    await env.DB.prepare("INSERT INTO link_codes (code, uuid, name, exp) VALUES (?1, ?2, ?3, ?4)").bind(code, who.u, who.n, now + LINK_MS).run();
+    return json({ code, url: `${url.origin}/store?link=${code}`, expiresIn: LINK_MS / 1000 });
+  }
+
+  if (path === "/api/web/login" && method === "POST") {
+    if (!sameOrigin(request, url)) return json({ error: "forbidden" }, 403);
+    await ensureShop(env);
+    const body = await request.json().catch(() => ({}));
+    const code = String(body.code || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const row = await env.DB.prepare("DELETE FROM link_codes WHERE code = ?1 AND exp > ?2 RETURNING uuid, name").bind(code, now).first();
+    if (!row) return json({ error: "Code not found or expired. Make a new one in game." }, 400);
+    const session = await sign(env, { k: "web", u: row.uuid, n: row.name, e: now + WEB_SESSION_MS });
+    return json({ name: row.name }, 200, { "set-cookie": setCookie("aero_web", session, WEB_SESSION_MS) });
+  }
+
+  if (path.startsWith("/api/web/")) {
+    if (path === "/api/web/logout" && method === "POST") return json({ ok: true }, 200, { "set-cookie": setCookie("aero_web", "", 0) });
+    const s = await unsign(env, cookie(request, "aero_web"), "web");
+    if (!s) return json({ error: "Not linked" }, 401);
+    if (path === "/api/web/me" && method === "GET") {
+      const w = await wallet(env, s.u);
+      return json({ name: s.n, shards: w.shards, owned: await ownedItems(env, s.u), betaFree: w.beta_free === 1 ? BETA_FREE : [] });
+    }
+    if (path === "/api/web/buy" && method === "POST") {
+      if (!sameOrigin(request, url)) return json({ error: "forbidden" }, 403);
+      return buyWithShards(env, s.u, await request.json().catch(() => ({})), now);
+    }
+    return json({ error: "not found" }, 404);
+  }
+
+  // Admin: Discord login, allowed ids in ADMIN_DISCORD_IDS.
+  if (path === "/api/admin/login" && method === "GET") {
+    if (!env.DISCORD_CLIENT_ID || !env.DISCORD_CLIENT_SECRET) return redirect(`${url.origin}/admin?error=setup`);
+    const state = randomCode(16);
+    const q = new URLSearchParams({
+      client_id: env.DISCORD_CLIENT_ID,
+      redirect_uri: `${url.origin}/api/admin/callback`,
+      response_type: "code",
+      scope: "identify",
+      state,
+    });
+    return redirect(`https://discord.com/oauth2/authorize?${q}`, [setCookie("aero_st", await sign(env, { k: "st", s: state, e: now + 600000 }), 600000)]);
+  }
+
+  if (path === "/api/admin/callback" && method === "GET") {
+    const st = await unsign(env, cookie(request, "aero_st"), "st");
+    const clear = setCookie("aero_st", "", 0);
+    if (!st || !safeEqual(st.s, url.searchParams.get("state") || "")) return redirect(`${url.origin}/admin?error=state`, [clear]);
+    const tok = await fetch("https://discord.com/api/oauth2/token", {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        client_id: env.DISCORD_CLIENT_ID,
+        client_secret: env.DISCORD_CLIENT_SECRET,
+        grant_type: "authorization_code",
+        code: url.searchParams.get("code") || "",
+        redirect_uri: `${url.origin}/api/admin/callback`,
+      }),
+    });
+    if (!tok.ok) return redirect(`${url.origin}/admin?error=discord`, [clear]);
+    const { access_token } = await tok.json();
+    const me = await (await fetch("https://discord.com/api/users/@me", { headers: { authorization: `Bearer ${access_token}` } })).json();
+    if (!me.id || !adminIds(env).includes(me.id)) return redirect(`${url.origin}/admin?denied=${encodeURIComponent(me.id || "")}`, [clear]);
+    const session = await sign(env, { k: "adm", id: me.id, n: me.global_name || me.username, e: now + ADMIN_SESSION_MS });
+    return redirect(`${url.origin}/admin`, [clear, setCookie("aero_adm", session, ADMIN_SESSION_MS)]);
+  }
+
+  if (path.startsWith("/api/admin/")) {
+    if (path === "/api/admin/logout" && method === "POST") return json({ ok: true }, 200, { "set-cookie": setCookie("aero_adm", "", 0) });
+    const a = await unsign(env, cookie(request, "aero_adm"), "adm");
+    if (!a || !adminIds(env).includes(a.id)) return json({ error: "unauthorized" }, 401);
+    await ensureShop(env);
+    if (path === "/api/admin/me" && method === "GET") return json({ id: a.id, name: a.n });
+    if (path === "/api/admin/orders" && method === "GET") {
+      const rows = await env.DB.prepare(
+        "SELECT code, product, name, cents, uuid, player, contact, status, created, done_at, done_by FROM orders ORDER BY created DESC LIMIT 300"
+      ).all();
+      return json({ orders: rows.results });
+    }
+    const m = path.match(/^\/api\/admin\/orders\/(AERO-[A-Z0-9]{6})\/(paid|cancel)$/);
+    if (m && method === "POST") {
+      if (!sameOrigin(request, url)) return json({ error: "forbidden" }, 403);
+      const o = await env.DB.prepare("SELECT * FROM orders WHERE code = ?").bind(m[1]).first();
+      if (!o) return json({ error: "not found" }, 404);
+      const status = m[2] === "paid" ? "paid" : "cancelled";
+      const res = await env.DB.prepare("UPDATE orders SET status = ?1, done_at = ?2, done_by = ?3 WHERE code = ?4 AND status = 'pending'")
+        .bind(status, now, a.n, o.code)
+        .run();
+      if (res.meta.changes !== 1) return json({ error: `Order is already ${o.status}` }, 409);
+      if (status === "paid") await grantOrder(env, o, now);
+      return json({ ok: true, status });
+    }
+    return json({ error: "not found" }, 404);
+  }
+  return null;
+}
+
 const PRESET_MAX_BYTES = 32768;
 const PRESET_LIMIT_PER_PLAYER = 10;
 
@@ -537,9 +821,15 @@ export default {
             newest: CATALOG.filter((c) => c.added === newestAdded).map(priced),
             catalog: CATALOG.map(priced),
             locked: LOCKED_KINDS,
+            money: moneyCatalog(env),
             payout: { every: PAYOUT_MS, shards: PAYOUT },
           });
         });
+      }
+
+      if (path.startsWith("/api/orders") || path === "/api/link" || path.startsWith("/api/web/") || path.startsWith("/api/admin/")) {
+        const res = await shopRoutes(request, env, url);
+        if (res) return res;
       }
 
       // ---- wallet, rewards, purchases (verified players only) ----
@@ -583,26 +873,7 @@ export default {
         }
 
         if (path === "/api/store/buy" && method === "POST") {
-          const body = await request.json().catch(() => ({}));
-          const id = String(body.item || "");
-          const item = catalogItem(id);
-          if (!item) return json({ error: "Unknown item" }, 400);
-          const w = await wallet(env, who.u);
-          if ((await ownedItems(env, who.u)).includes(id)) return json({ error: "You already own this" }, 409);
-          const free = w.beta_free === 1 && BETA_FREE.includes(id);
-          const price = free ? 0 : priceNow(id, now);
-          // The client sends the price it showed; a rotation that flipped in between must not surprise anyone.
-          if (body.price !== undefined && Number(body.price) !== price) return json({ error: "The price just changed, check it again" }, 409);
-          const pay = free
-            ? env.DB.prepare("UPDATE wallets SET beta_free = 0 WHERE uuid = ?1 AND beta_free = 1").bind(who.u)
-            : env.DB.prepare("UPDATE wallets SET shards = shards - ?1 WHERE uuid = ?2 AND shards >= ?1").bind(price, who.u);
-          const res = await pay.run();
-          if (res.meta.changes !== 1) return json({ error: free ? "Free cape already used" : "Not enough shards" }, 402);
-          await env.DB.batch([
-            env.DB.prepare("INSERT OR IGNORE INTO owned (uuid, item, at) VALUES (?1, ?2, ?3)").bind(who.u, id, now),
-            ledgerRow(env, who.u, -price, free ? `${item.name} (free beta cape)` : item.name, now),
-          ]);
-          return json({ bought: id, price, ...(await walletView(env, who.u, now)) });
+          return buyWithShards(env, who.u, await request.json().catch(() => ({})), now);
         }
         return json({ error: "not found" }, 404);
       }
