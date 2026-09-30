@@ -108,6 +108,28 @@ async function latestPreview(repo) {
   return rel ? { version: rel.tag_name, assets: rel.assets || [] } : null;
 }
 
+/**
+ * Last known-good answers from GitHub, kept in D1. The unauthenticated GitHub API rate-limits
+ * Cloudflare's shared addresses now and then; downloads and /api/version then use what was seen last.
+ */
+async function remember(env, key, value) {
+  await env.DB.prepare("CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT NOT NULL)").run();
+  if (value === undefined) return (await env.DB.prepare("SELECT v FROM meta WHERE k = ?").bind(key).first())?.v || null;
+  await env.DB.prepare("INSERT INTO meta (k, v) VALUES (?1, ?2) ON CONFLICT(k) DO UPDATE SET v = ?2").bind(key, value).run();
+  return value;
+}
+
+/** {tag, url} of the newest launcher exe: fresh from GitHub, else the last one seen; null if never seen. */
+async function launcherNow(env) {
+  const found = await latestLauncherExe(env.LAUNCHER_REPO);
+  if (found.asset) {
+    const v = { tag: found.asset.tag, url: found.asset.browser_download_url };
+    await remember(env, "launcher", JSON.stringify(v));
+    return v;
+  }
+  return found.failed ? JSON.parse((await remember(env, "launcher")) || "null") : null;
+}
+
 let schemaReady = false;
 /** Adds the "verified" column on first use (guests = no valid Mojang session, e.g. offline accounts). */
 async function ensureSchema(env) {
@@ -701,14 +723,15 @@ export default {
       if (path === "/api/version" && method === "GET") {
         return cached(request, ctx, 300, async () => {
           // The launcher lives in its own non-latest releases, so "latest" is only ever the mod.
-          const [mod, launcher] = await Promise.all([latestRelease(env.MOD_REPO), latestLauncherExe(env.LAUNCHER_REPO)]);
+          const [mod, launcher] = await Promise.all([latestRelease(env.MOD_REPO), launcherNow(env)]);
           const jar = mod?.assets.find((a) => a.name.toLowerCase().endsWith(".jar"));
+          const modVersion = mod?.version ? await remember(env, "mod", mod.version) : await remember(env, "mod");
           return json(
             {
-              mod: { version: mod?.version || null, url: jar?.browser_download_url || null },
-              launcher: { version: launcher.asset?.tag?.replace(/^launcher-/, "") || null, url: launcher.asset?.browser_download_url || null },
+              mod: { version: modVersion, url: jar?.browser_download_url || `https://github.com/${env.MOD_REPO}/releases/latest/download/${env.MOD_ASSET}` },
+              launcher: { version: launcher?.tag?.replace(/^launcher-/, "") || null, url: launcher?.url || null },
             },
-            mod?.failed || launcher.failed ? 503 : 200
+            modVersion ? 200 : 503 // nothing known yet: not cached, so the next request asks GitHub again
           );
         });
       }
@@ -721,12 +744,9 @@ export default {
         const cache = caches.default;
         let downloadUrl = (await cache.match(cacheKey))?.headers.get("location");
         if (!downloadUrl) {
-          const found = await latestLauncherExe(env.LAUNCHER_REPO);
-          if (found.failed) {
-            return Response.redirect(`https://github.com/${env.LAUNCHER_REPO}/releases`, 302);
-          }
-          if (!found.asset) return Response.redirect(`${url.origin}/?nodl=launcher`, 302);
-          downloadUrl = found.asset.browser_download_url;
+          const found = await launcherNow(env);
+          if (!found) return Response.redirect(`https://github.com/${env.LAUNCHER_REPO}/releases`, 302);
+          downloadUrl = found.url;
           ctx.waitUntil(
             cache.put(cacheKey, new Response(null, { headers: { location: downloadUrl, "cache-control": "max-age=300" } }))
           );
