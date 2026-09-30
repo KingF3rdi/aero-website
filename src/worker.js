@@ -62,7 +62,7 @@ async function cached(request, ctx, seconds, produce) {
   const out = new Response(res.body, res);
   out.headers.set("cache-control", `public, max-age=${seconds}`);
   out.headers.set("access-control-allow-origin", "*"); // public, read-only data; the launcher webview reads it
-  ctx.waitUntil(cache.put(key, out.clone()));
+  if (res.status === 200) ctx.waitUntil(cache.put(key, out.clone())); // never cache a failure for everyone
   return out;
 }
 
@@ -87,7 +87,7 @@ async function latestLauncherExe(repo) {
   if (!r.ok) return { failed: true };
   const exes = (await r.json())
     .filter((x) => !x.draft && !x.prerelease)
-    .flatMap((x) => x.assets || [])
+    .flatMap((x) => (x.assets || []).map((a) => ({ ...a, tag: x.tag_name })))
     .filter((a) => a.name.toLowerCase().endsWith(".exe"))
     .sort((a, b) => (b.updated_at || "").localeCompare(a.updated_at || ""));
   return { asset: exes[0] || null };
@@ -700,12 +700,16 @@ export default {
 
       if (path === "/api/version" && method === "GET") {
         return cached(request, ctx, 300, async () => {
-          const [mod, launcher] = await Promise.all([latestRelease(env.MOD_REPO), latestRelease(env.LAUNCHER_REPO)]);
-          const find = (rel, ext) => rel?.assets.find((a) => a.name.toLowerCase().endsWith(ext))?.browser_download_url || null;
-          return json({
-            mod: { version: mod?.version || null, url: find(mod, ".jar") },
-            launcher: { version: launcher?.version || null, url: find(launcher, ".exe") },
-          });
+          // The launcher lives in its own non-latest releases, so "latest" is only ever the mod.
+          const [mod, launcher] = await Promise.all([latestRelease(env.MOD_REPO), latestLauncherExe(env.LAUNCHER_REPO)]);
+          const jar = mod?.assets.find((a) => a.name.toLowerCase().endsWith(".jar"));
+          return json(
+            {
+              mod: { version: mod?.version || null, url: jar?.browser_download_url || null },
+              launcher: { version: launcher.asset?.tag?.replace(/^launcher-/, "") || null, url: launcher.asset?.browser_download_url || null },
+            },
+            mod?.failed || launcher.failed ? 503 : 200
+          );
         });
       }
 
